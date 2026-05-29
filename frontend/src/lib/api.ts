@@ -63,3 +63,54 @@ export async function adaptContent(req: AdaptRequest): Promise<PlatformResult[]>
   const data = await resp.json();
   return data.results as PlatformResult[];
 }
+
+// ---------------- 多模型对比 ----------------
+export interface ModelOption {
+  label: string;
+  provider: string;
+  model: string;
+}
+
+export interface CompareVariant {
+  label: string;
+  provider: string;
+  model: string | null;
+}
+
+export interface CompareVariantResult {
+  label: string;
+  provider: string;
+  model: string;
+  latency_ms: number;
+  result: PlatformResult;
+}
+
+export interface CompareResponse {
+  platform: string;
+  display_name: string;
+  variants: CompareVariantResult[];
+}
+
+export async function fetchModels(): Promise<ModelOption[]> {
+  const resp = await fetch(`${API_BASE}/models`);
+  if (!resp.ok) {
+    throw new Error(`获取模型列表失败: ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function compareModels(
+  content: ContentInput,
+  platform: string,
+  variants: CompareVariant[]
+): Promise<CompareResponse> {
+  const resp = await fetch(`${API_BASE}/compare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, platform, variants }),
+  });
+  if (!resp.ok) {
+    throw new Error(`对比请求失败: ${resp.status}`);
+  }
+  return resp.json();
+}
