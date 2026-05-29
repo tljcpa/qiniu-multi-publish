@@ -100,3 +100,16 @@
   margin: 0.45em 0;
   line-height: 1.7;
 }
+
+/* 流式打字机光标 */
+.typing-caret::after {
+  content: "▌";
+  margin-left: 1px;
+  color: #6b7280;
+  animation: caret-blink 1s steps(1) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
