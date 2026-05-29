@@ -77,6 +77,31 @@ def test_adapt_unknown_platform_returns_error(monkeypatch):
     assert resp.json()["results"][0]["error"] is not None
 
 
+def test_adapt_empty_content_rejected():
+    """标题与正文同时为空应被拒（400），不浪费 LLM 配额。"""
+    resp = client.post("/adapt", json={
+        "content": {"title": "  ", "body_md": "", "tags": []},
+        "platforms": ["wechat"],
+    })
+    assert resp.status_code == 400
+
+
+def test_compare_empty_content_rejected():
+    resp = client.post("/compare", json={
+        "content": {"title": "", "body_md": "   ", "tags": []},
+        "platform": "wechat",
+    })
+    assert resp.status_code == 400
+
+
+def test_stream_empty_content_rejected():
+    resp = client.post("/adapt/stream", json={
+        "content": {"title": "", "body_md": "", "tags": []},
+        "platforms": ["wechat"],
+    })
+    assert resp.status_code == 400
+
+
 def test_models_lists_deepseek():
     """GET /models 至少包含两个 DeepSeek 选项。"""
     resp = client.get("/models")

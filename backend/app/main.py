@@ -16,7 +16,7 @@ import asyncio
 import json
 import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -47,13 +47,24 @@ app = FastAPI(
     version=__version__,
 )
 
-# 允许前端跨域访问（前端与后端可能分端口/分域名部署）。demo 优先，放开来源。
+# CORS：生产前端与后端同源（经 Caddy），CORS 仅对开发/外部调用生效。
+# 收敛到已知来源而非通配，避免任意站点借我们的后端消耗 LLM 配额。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=[
+        "https://publish.qiniu.zdwktlj.top",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+def _require_nonempty(content) -> None:
+    """拒绝标题与正文同时为空的请求（API 层守卫，前端之外也兜底）。"""
+    if not content.title.strip() and not content.body_md.strip():
+        raise HTTPException(status_code=400, detail="标题与正文不能同时为空")
 
 
 @app.get("/")
@@ -94,6 +105,7 @@ async def adapt(req: AdaptRequest):
 
     部分平台失败不影响其它平台（该平台 result.error 非空）。
     """
+    _require_nonempty(req.content)
     # 目标平台：未指定则适配到全部
     targets = req.platforms
     if not targets:
@@ -161,6 +173,7 @@ def list_models():
 @app.post("/compare", response_model=CompareResponse)
 async def compare(req: CompareRequest):
     """同一平台、多个模型并发适配，返回各自结果与耗时，供用户对比挑选（亮点6）。"""
+    _require_nonempty(req.content)
     adapter = get_adapter(req.platform)
 
     variants = req.variants
@@ -209,6 +222,7 @@ async def adapt_stream(req: AdaptRequest):
     每平台一个线程跑 provider.chat_stream，经队列汇流到单条 SSE 响应。
     事件类型：meta（平台元信息）/ delta（增量文本）/ done（结构化结果）/ error / all_done。
     """
+    _require_nonempty(req.content)
     targets = req.platforms
     if not targets:
         targets = platform_names()
