@@ -5,9 +5,9 @@
 
 > 七牛云 × XEngineer 暑期实训营 · 题目二作品
 
-- 在线试用：https://publish.qiniu.zdwktlj.top  （部署后可用）
+- **在线试用（已上线）**：https://publish.qiniu.zdwktlj.top
 - 演示视频：待录制上传（B 站）
-- 架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 扩展指南：[docs/EXTENSION_GUIDE.md](docs/EXTENSION_GUIDE.md)
+- 架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 扩展指南：[docs/EXTENSION_GUIDE.md](docs/EXTENSION_GUIDE.md) · 部署文档：[docs/DEPLOY.md](docs/DEPLOY.md)
 
 ---
 
@@ -27,6 +27,19 @@
 - **4 大平台原生风格适配**：不只是 markdown→html，是公众号正式 / 知乎严谨 / B 站口语 / 小红书种草的**风格**本地化
 - **所见即所得平台预览**：每个平台模拟其真实展示外观
 - **一键复制 + 跳转闭环**：复制适配后内容到剪贴板，并新标签打开对应平台编辑页
+
+## 效果示例
+
+同一篇《远程办公真的更高效吗》原文，一键适配到 4 个平台，标题风格截然不同：
+
+| 平台 | 适配后标题 |
+|---|---|
+| 公众号 | 远程办公效率低？关键在这两点 |
+| 知乎 | 远程办公真的更高效吗？关键在异步协作与文档文化 |
+| B站 | 远程办公真的更高效？我愿称之为"血赚"还是"血亏" |
+| 小红书 | ❌别再被忽悠了！远程办公的真相是…… |
+
+正文同样会被改写成各平台原生风格（段落长度、emoji 密度、互动话术、话题标签），并以真机样式预览。
 
 ## 技术栈
 
