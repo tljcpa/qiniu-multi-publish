@@ -10,4 +10,5 @@
 """
 
 from adapters import wechat  # noqa: F401  公众号
+from adapters import zhihu  # noqa: F401  知乎
 
