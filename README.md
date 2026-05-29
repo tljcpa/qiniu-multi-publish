@@ -103,10 +103,28 @@ class MyPlatformAdapter(PlatformAdapter):
 每个 PR 只做一件事，主分支始终保持可运行。核心功能与差异化亮点（含多模型对比、流式适配）均已上线，
 后端含离线单测 + 真实 LLM 联调。设计决策日志见 [docs/复盘.md](docs/复盘.md)，答辩脚本见 [docs/答辩.md](docs/答辩.md)。
 
+## 第三方依赖与原创声明
+
+本项目仅使用以下开源库的公开 API，**未复制任何第三方项目的源码**：
+
+- 后端：FastAPI、Uvicorn、Pydantic / pydantic-settings、openai-python（用于调用 DeepSeek/Azure 的 OpenAI 兼容接口）、pytest、httpx
+- 前端：React、Vite、TypeScript、Tailwind CSS、Tiptap（含 tiptap-markdown）、marked、DOMPurify、lucide-react、IBM Plex 字体
+- 部署：Docker、Caddy
+
+**原创部分（本项目自有代码与设计）**：
+- Platform Adapter 插件化架构（抽象基类、注册表、统一契约测试模板）与公众号/知乎/B站/小红书四个具体 adapter
+- 各平台风格适配 prompt（自行总结的风格规则，不抄平台真实内容）
+- LLMProvider 双后端抽象、FastAPI 路由（适配/流式 SSE/多模型对比）
+- 全部前端组件（编辑器集成、高保真手机壳预览、复制跳转、对比面板）与视觉设计
+- 全部文档（架构、扩展指南、部署、复盘、答辩脚本）
+
+以上原创代码均为本批次（2026-05-29 起）新写，无复用作者过去项目的代码。
+
 ## AI 协作声明
 
-本项目通过 Claude Code 辅助开发。Prompt / 关键决策 / review 记录见 [docs/复盘.md](docs/复盘.md)。
-代码经过人工审阅、测试与定型。
+本项目通过 Claude Code（AI 编程助手）辅助开发：AI 参与了框架代码起草、风格 prompt 调试、前端组件与样式实现；
+关键决策（产品定位、Adapter 接口最小集、设计语言等）由人确定，代码经过人工审阅、测试与定型。
+完整的 Prompt / 决策 / AI 出错与修正记录见 [docs/复盘.md](docs/复盘.md)。
 
 ## 开源协议
 
