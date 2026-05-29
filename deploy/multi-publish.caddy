@@ -1,0 +1,25 @@
+# Caddy 站点配置（本项目）。
+# 放到 VM 的 /etc/caddy/conf.d/multi-publish.caddy，由主 Caddyfile 通过
+#   import /etc/caddy/conf.d/*.caddy
+# 引入。这样三项目各占一个 .caddy 文件、互不冲突（见复盘 D-11）。
+#
+# 自动 HTTPS：Caddy 为该域名自动申请并续期 Let's Encrypt 证书。
+# 剪贴板 API 依赖 HTTPS 安全上下文，这一步是核心闭环的硬前提。
+
+publish.qiniu.zdwktlj.top {
+	# 前端静态资源（VM 上 `npm run build` 产出）
+	root * /opt/multi-publish/frontend/dist
+	encode gzip
+
+	# 后端 API：精确路径反代到后端容器 8082，避免与 SPA 路由冲突
+	@api path /platforms /adapt /health /docs /openapi.json
+	handle @api {
+		reverse_proxy 127.0.0.1:8082
+	}
+
+	# 其余请求走 SPA：找不到文件回退到 index.html
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}
