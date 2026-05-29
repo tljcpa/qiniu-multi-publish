@@ -7,32 +7,30 @@ import type { CompareVariantResult } from "../lib/api";
 
 interface ComparePanelProps {
   variants: CompareVariantResult[];
-  // 当前平台已偏好的模型（provider:model），用于高亮
   preferredKey: string | null;
   onPick: (v: CompareVariantResult) => void;
 }
 
 export default function ComparePanel({ variants, preferredKey, onPick }: ComparePanelProps) {
   return (
-    <div className="flex gap-6 overflow-x-auto pb-4">
+    <div className="flex gap-5 overflow-x-auto pb-4">
       {variants.map((v) => {
         const chrome = getChrome(v.result.platform);
         const key = `${v.provider}:${v.model}`;
         const preferred = key === preferredKey;
         return (
-          <div key={v.label} className="flex flex-col items-center gap-3">
-            {/* 模型标签 + 耗时 */}
+          <div key={v.label} className="flex flex-col items-center gap-2.5">
             <div className="flex w-[300px] items-center justify-between">
-              <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-paper">
                 {v.label}
                 {preferred && (
-                  <span className="flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                    <Star size={10} /> 偏好
+                  <span className="flex items-center gap-0.5 rounded bg-clay-soft px-1.5 py-0.5 font-mono text-[10px] font-medium text-clay">
+                    <Star size={9} /> 偏好
                   </span>
                 )}
               </span>
-              <span className="flex items-center gap-1 text-xs text-gray-400">
-                <Clock size={12} /> {(v.latency_ms / 1000).toFixed(1)}s
+              <span className="flex items-center gap-1 font-mono text-[11px] text-paper-faint">
+                <Clock size={11} /> {(v.latency_ms / 1000).toFixed(1)}s
               </span>
             </div>
 
@@ -53,14 +51,14 @@ export default function ComparePanel({ variants, preferredKey, onPick }: Compare
               <>
                 <button
                   onClick={() => onPick(v)}
-                  className={`flex w-[300px] items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-colors ${
+                  className={`flex w-[300px] items-center justify-center gap-1.5 rounded py-2 text-sm font-medium transition-colors ${
                     preferred
-                      ? "bg-amber-500 text-white hover:bg-amber-600"
-                      : "border border-gray-300 text-gray-700 hover:border-gray-400"
+                      ? "bg-clay text-white hover:bg-clay-hover"
+                      : "border border-ink-600 text-paper-dim hover:text-paper"
                   }`}
                 >
-                  {preferred ? <Check size={15} /> : <Star size={15} />}
-                  {preferred ? "已设为该平台偏好模型" : "用这个模型"}
+                  {preferred ? <Check size={14} /> : <Star size={14} />}
+                  {preferred ? "已设为该平台偏好" : "用这个模型"}
                 </button>
                 <PublishActions result={v.result} />
               </>

@@ -1,4 +1,4 @@
-// 预览面板：把每个平台结果套进手机壳。
+// 预览面板：每个平台结果套进手机壳 + 一行 mono 遥测（字数/标签/耗时/模型）。
 // 流式态显示逐字打字（原始文本 + 光标）；完成后切换为高保真平台预览。
 import PhoneFrame from "./PhoneFrame";
 import PublishActions from "./PublishActions";
@@ -7,11 +7,11 @@ import type { PlatformResult } from "../lib/api";
 
 export default function PreviewPanel({ results }: { results: PlatformResult[] }) {
   return (
-    <div className="flex gap-6 overflow-x-auto pb-4">
+    <div className="flex gap-5 overflow-x-auto pb-4">
       {results.map((r) => {
         const chrome = getChrome(r.platform);
         return (
-          <div key={r.platform} className="flex flex-col items-center gap-3">
+          <div key={r.platform} className="flex flex-col items-center gap-2.5">
             {r.error ? (
               <PhoneFrame statusLabel={r.display_name} topBarColor="#ffffff" darkStatus>
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-red-500">
@@ -22,7 +22,7 @@ export default function PreviewPanel({ results }: { results: PlatformResult[] })
             ) : r.streaming ? (
               <PhoneFrame statusLabel={r.display_name} topBarColor={chrome.topBar} darkStatus={chrome.dark}>
                 <div className="px-5 py-4 text-[14px] leading-relaxed text-gray-700">
-                  <div className="mb-2 text-xs font-medium text-gray-400">适配中…</div>
+                  <div className="mb-2 font-mono text-[11px] uppercase tracking-wide text-gray-400">generating</div>
                   <div className="typing-caret whitespace-pre-wrap break-words">{r.content}</div>
                 </div>
               </PhoneFrame>
@@ -31,11 +31,38 @@ export default function PreviewPanel({ results }: { results: PlatformResult[] })
                 {renderPlatformInner(r)}
               </PhoneFrame>
             )}
-            <div className="text-sm font-semibold text-gray-700">{r.display_name}</div>
+            <PlatformMeta result={r} />
             {!r.error && !r.streaming && <PublishActions result={r} />}
           </div>
         );
       })}
     </div>
   );
+}
+
+function PlatformMeta({ result }: { result: PlatformResult }) {
+  return (
+    <div className="flex w-[300px] items-center justify-between">
+      <span className="text-sm font-semibold text-paper">{result.display_name}</span>
+      {!result.error && (
+        <span className="font-mono text-[11px] text-paper-faint">
+          {result.streaming ? `${result.content.length}字…` : metaLine(result)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function metaLine(r: PlatformResult): string {
+  const parts = [`${r.content.length}字`];
+  if (r.hashtags.length > 0) {
+    parts.push(`#${r.hashtags.length}`);
+  }
+  if (typeof r.elapsed_ms === "number" && r.elapsed_ms > 0) {
+    parts.push(`${(r.elapsed_ms / 1000).toFixed(1)}s`);
+  }
+  if (r.model) {
+    parts.push(r.model);
+  }
+  return parts.join(" · ");
 }

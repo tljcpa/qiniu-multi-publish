@@ -30,6 +30,8 @@ export interface PlatformResult {
   error: string | null;
   // 前端流式态标记：true 表示该平台仍在逐字生成中
   streaming?: boolean;
+  // 客户端测得的生成耗时（毫秒，流式从 meta 到 done）
+  elapsed_ms?: number;
 }
 
 export interface ContentInput {

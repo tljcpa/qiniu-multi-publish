@@ -22,7 +22,7 @@ export default function PhoneFrame({
   const statusColor = darkStatus ? "#1f2937" : "#ffffff";
   return (
     <div className="w-[300px] shrink-0">
-      <div className="rounded-[2.4rem] border-[11px] border-gray-900 bg-gray-900 shadow-2xl">
+      <div className="rounded-[2.4rem] border-[11px] border-black bg-black shadow-xl ring-1 ring-ink-600">
         <div className="relative flex h-[600px] flex-col overflow-hidden rounded-[1.7rem] bg-white">
           {/* 刘海 */}
           <div className="absolute left-1/2 top-0 z-20 h-[22px] w-[120px] -translate-x-1/2 rounded-b-2xl bg-gray-900" />
