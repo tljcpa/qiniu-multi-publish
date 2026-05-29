@@ -168,6 +168,7 @@ flowchart LR
 - 统一接口：`chat(messages)` 与 `chat_json(messages, schema)`。
 - 双后端的意义：① 主用 DeepSeek（便宜快）；② Azure 备用做"多模型对比"亮点（同内容两模型适配，用户选优，偏好回流）。
 - 切后端不改 adapter：adapter 只依赖抽象接口，后端由配置/请求参数决定。
+- 对外接口：`GET /models` 按已配置 key 动态列出可用模型；`POST /compare` 对单平台用多个模型并发适配，返回各自结果与 `latency_ms`，支撑前端"多模型对比 + 偏好记忆"（亮点6）。
 
 ---
 

@@ -141,7 +141,8 @@ class DeepSeekProvider(_OpenAICompatProvider):
 class AzureProvider(_OpenAICompatProvider):
     """Azure OpenAI 后端（备用，用于多模型对比亮点）。"""
 
-    def __init__(self, deployment: str | None = None):
+    def __init__(self, model: str | None = None):
+        # 统一用 model 参数（对 Azure 即 deployment 名），与 get_provider(name, model=...) 一致
         if not settings.azure_openai_api_key or not settings.azure_openai_endpoint:
             raise LLMError("AZURE_OPENAI_* 未配置，无法初始化 AzureProvider")
         # 延迟导入：未配置 Azure 时不强制依赖该符号
@@ -153,7 +154,7 @@ class AzureProvider(_OpenAICompatProvider):
             api_version=settings.azure_openai_api_version,
         )
         # Azure 用 deployment 名而非模型名，默认读配置
-        super().__init__(client, deployment or settings.azure_openai_deployment, "azure")
+        super().__init__(client, model or settings.azure_openai_deployment, "azure")
 
 
 def get_provider(name: str = "deepseek", **kwargs) -> LLMProvider:
