@@ -1,0 +1,14 @@
+# 全栈编排（PR1 占位骨架，Caddy/HTTPS/前端服务在 PR14 完善）。
+# 同机三项目隔离：本项目后端对外固定 8082 端口。
+
+services:
+  backend:
+    build: ./backend
+    # 宿主机 8082 -> 容器 8082（与同机另两个项目隔离，见 BRIEF §3.4）
+    ports:
+      - "8082:8082"
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+
+  # frontend 服务与 Caddy 反向代理在 PR14 接入
