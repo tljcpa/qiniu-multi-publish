@@ -58,3 +58,46 @@ class AdaptResponse(BaseModel):
     """POST /adapt 响应体。"""
 
     results: list[PlatformResult]
+
+
+# ---------------------- 多模型对比（亮点6） ----------------------
+class ModelOption(BaseModel):
+    """一个可用的 LLM 模型选项（GET /models）。"""
+
+    label: str          # 显示名，如 "DeepSeek Chat"
+    provider: str       # "deepseek" | "azure"
+    model: str          # 具体模型/部署名
+
+
+class CompareVariant(BaseModel):
+    """对比请求里的一个模型变体。"""
+
+    label: str
+    provider: str
+    model: str | None = None
+
+
+class CompareRequest(BaseModel):
+    """POST /compare 请求体：单平台、多模型对比。"""
+
+    content: ContentInput
+    platform: str
+    variants: list[CompareVariant] = Field(default_factory=list, description="参与对比的模型，空=用默认两个")
+
+
+class CompareVariantResult(BaseModel):
+    """单个模型变体在该平台的适配结果 + 耗时。"""
+
+    label: str
+    provider: str
+    model: str
+    latency_ms: int = 0
+    result: PlatformResult
+
+
+class CompareResponse(BaseModel):
+    """POST /compare 响应体。"""
+
+    platform: str
+    display_name: str
+    variants: list[CompareVariantResult]

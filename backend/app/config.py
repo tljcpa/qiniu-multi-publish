@@ -21,9 +21,12 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
 
-    # 备用后端：Azure OpenAI（多模型对比用），实际调用在 PR3 接入
+    # 备用后端：Azure OpenAI（多模型对比用）
     azure_openai_api_key: str = ""
     azure_openai_endpoint: str = ""
+    # Azure 用 deployment 名而非模型名；版本号随资源
+    azure_openai_deployment: str = "gpt-4-1-mini"
+    azure_openai_api_version: str = "2024-10-21"
 
     # 从 .env 读取；忽略未声明的多余变量，避免共享 shared.env 里其它项目的键报错
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
