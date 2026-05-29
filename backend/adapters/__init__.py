@@ -12,4 +12,5 @@
 from adapters import wechat  # noqa: F401  公众号
 from adapters import zhihu  # noqa: F401  知乎
 from adapters import bilibili  # noqa: F401  B站
+from adapters import xhs  # noqa: F401  小红书
 
