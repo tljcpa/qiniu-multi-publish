@@ -2,22 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tiptap 编辑区基础排版（ProseMirror） */
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background-color: #191713; /* ink-900 */
+  color: #ece6da; /* paper */
+  font-family: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 细滚动条，工具质感 */
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #352f25; /* ink-700 */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== Tiptap 编辑区（深色面板内） ===== */
 .ProseMirror {
   min-height: 360px;
   outline: none;
+  color: #ece6da;
 }
 .ProseMirror p {
   margin: 0.5em 0;
-  line-height: 1.7;
+  line-height: 1.75;
 }
 .ProseMirror h1 {
-  font-size: 1.5em;
+  font-size: 1.4em;
   font-weight: 700;
   margin: 0.6em 0 0.3em;
 }
 .ProseMirror h2 {
-  font-size: 1.25em;
+  font-size: 1.2em;
   font-weight: 600;
   margin: 0.6em 0 0.3em;
 }
@@ -33,21 +59,23 @@
   list-style: decimal;
 }
 .ProseMirror blockquote {
-  border-left: 3px solid #d1d5db;
+  border-left: 2px solid #463e30;
   padding-left: 0.8em;
-  color: #6b7280;
+  color: #a8a08f;
   margin: 0.6em 0;
 }
-/* 占位符 */
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #9ca3af;
+  color: #7b7363;
   pointer-events: none;
   height: 0;
 }
 
-/* ===== 平台预览正文排版（渲染后的 Markdown） ===== */
+/* ===== 平台预览正文排版（手机壳内部为各平台真实浅色，故文字为深色） ===== */
+.preview-body {
+  color: #1f2937;
+}
 .preview-body p {
   margin: 0.6em 0;
   line-height: 1.75;
@@ -90,12 +118,10 @@
   color: #6b7280;
   margin: 0.6em 0;
 }
-/* 知乎：段落更长更紧凑，体现长文论证感 */
 .preview-body-zhihu p {
   line-height: 1.8;
   text-align: justify;
 }
-/* 小红书：行距更松，短句感 */
 .preview-body-xhs p {
   margin: 0.45em 0;
   line-height: 1.7;
@@ -105,7 +131,7 @@
 .typing-caret::after {
   content: "▌";
   margin-left: 1px;
-  color: #6b7280;
+  color: #c2693f;
   animation: caret-blink 1s steps(1) infinite;
 }
 @keyframes caret-blink {
