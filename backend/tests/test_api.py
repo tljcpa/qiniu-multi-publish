@@ -77,6 +77,72 @@ def test_adapt_unknown_platform_returns_error(monkeypatch):
     assert resp.json()["results"][0]["error"] is not None
 
 
+def test_models_lists_deepseek():
+    """GET /models 至少包含两个 DeepSeek 选项。"""
+    resp = client.get("/models")
+    assert resp.status_code == 200
+    models = resp.json()
+    pairs = {(m["provider"], m["model"]) for m in models}
+    assert ("deepseek", "deepseek-chat") in pairs
+    assert ("deepseek", "deepseek-reasoner") in pairs
+
+
+def test_compare_with_fake_provider(monkeypatch):
+    """/compare 用假 provider：单平台、两个模型变体应各返回结果与耗时。"""
+    payload = {"title": "对比标题", "content": "对比正文", "summary": "", "hashtags": []}
+    monkeypatch.setattr(main, "get_provider", lambda *a, **k: FakeProvider(payload))
+    resp = client.post("/compare", json={
+        "content": {"title": "原", "body_md": "正文", "tags": []},
+        "platform": "wechat",
+        "variants": [
+            {"label": "A", "provider": "deepseek", "model": "deepseek-chat"},
+            {"label": "B", "provider": "deepseek", "model": "deepseek-reasoner"},
+        ],
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["platform"] == "wechat"
+    assert len(body["variants"]) == 2
+    for v in body["variants"]:
+        assert v["result"]["title"] == "对比标题"
+        assert v["latency_ms"] >= 0
+
+
+def test_compare_default_variants(monkeypatch):
+    """variants 为空时应使用默认两个模型对比。"""
+    payload = {"title": "t", "content": "c", "summary": "", "hashtags": []}
+    monkeypatch.setattr(main, "get_provider", lambda *a, **k: FakeProvider(payload))
+    resp = client.post("/compare", json={
+        "content": {"title": "原", "body_md": "正文", "tags": []},
+        "platform": "xhs",
+    })
+    assert resp.status_code == 200
+    assert len(resp.json()["variants"]) == 2
+
+
+@pytest.mark.skipif(
+    not os.getenv("DEEPSEEK_API_KEY"),
+    reason="未设置 DEEPSEEK_API_KEY，跳过真实 /compare live",
+)
+def test_compare_live():
+    """真连：公众号用两个 DeepSeek 模型对比。"""
+    resp = client.post("/compare", json={
+        "content": {"title": "远程办公真的更高效吗", "body_md": "省通勤但增沟通成本，关键在异步协作。", "tags": ["效率"]},
+        "platform": "wechat",
+        "variants": [
+            {"label": "Chat", "provider": "deepseek", "model": "deepseek-chat"},
+            {"label": "Reasoner", "provider": "deepseek", "model": "deepseek-reasoner"},
+        ],
+    })
+    assert resp.status_code == 200
+    variants = resp.json()["variants"]
+    assert len(variants) == 2
+    for v in variants:
+        assert v["result"]["error"] is None
+        assert v["result"]["title"]
+        assert v["latency_ms"] > 0
+
+
 @pytest.mark.skipif(
     not os.getenv("DEEPSEEK_API_KEY"),
     reason="未设置 DEEPSEEK_API_KEY，跳过真实 /adapt live",

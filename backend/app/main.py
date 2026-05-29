@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +23,11 @@ from app.config import settings
 from app.schemas import (
     AdaptRequest,
     AdaptResponse,
+    CompareRequest,
+    CompareResponse,
+    CompareVariant,
+    CompareVariantResult,
+    ModelOption,
     PlatformInfo,
     PlatformResult,
     PublishIntent,
@@ -29,7 +35,7 @@ from app.schemas import (
 
 # 导入 adapters 包触发所有平台 adapter 的自注册（@register 生效）
 import adapters  # noqa: F401
-from adapters.base import all_adapters, get_adapter, platform_names
+from adapters.base import AdaptedResult, PlatformAdapter, all_adapters, get_adapter, platform_names
 from app.llm_provider import LLMError, get_provider
 
 app = FastAPI(
@@ -109,22 +115,83 @@ async def adapt(req: AdaptRequest):
             result = await asyncio.to_thread(adapter.adapt, req.content, provider)
         except Exception as exc:  # noqa: BLE001  单平台失败不拖垮整体
             return _error_result(name, f"适配失败: {exc}", adapter.display_name)
-        intent = adapter.publish_intent(result)
-        return PlatformResult(
-            platform=result.platform,
-            display_name=adapter.display_name,
-            title=result.title,
-            content=result.content,
-            summary=result.summary,
-            hashtags=result.hashtags,
-            model=result.model,
-            preview_template=adapter.preview_template(),
-            formatted=adapter.format_content(result),
-            publish_intent=PublishIntent(**intent),
-        )
+        return _build_result(adapter, result)
 
     results = await asyncio.gather(*[adapt_one(n) for n in targets])
     return AdaptResponse(results=list(results))
+
+
+def _build_result(adapter: PlatformAdapter, result: AdaptedResult) -> PlatformResult:
+    """把适配结果 + adapter 渲染/跳转意图组装成对外 PlatformResult。"""
+    intent = adapter.publish_intent(result)
+    return PlatformResult(
+        platform=result.platform,
+        display_name=adapter.display_name,
+        title=result.title,
+        content=result.content,
+        summary=result.summary,
+        hashtags=result.hashtags,
+        model=result.model,
+        preview_template=adapter.preview_template(),
+        formatted=adapter.format_content(result),
+        publish_intent=PublishIntent(**intent),
+    )
+
+
+@app.get("/models", response_model=list[ModelOption])
+def list_models():
+    """列出当前可用的 LLM 模型（按已配置的 key 动态返回），供前端多模型对比选择。"""
+    options: list[ModelOption] = [
+        ModelOption(label="DeepSeek Chat", provider="deepseek", model="deepseek-chat"),
+        ModelOption(label="DeepSeek Reasoner", provider="deepseek", model="deepseek-reasoner"),
+    ]
+    # 仅在 Azure 配置齐全时才暴露，避免前端选了用不了
+    if settings.azure_openai_api_key and settings.azure_openai_endpoint:
+        options.append(ModelOption(
+            label="GPT-4.1-mini (Azure)",
+            provider="azure",
+            model=settings.azure_openai_deployment,
+        ))
+    return options
+
+
+@app.post("/compare", response_model=CompareResponse)
+async def compare(req: CompareRequest):
+    """同一平台、多个模型并发适配，返回各自结果与耗时，供用户对比挑选（亮点6）。"""
+    adapter = get_adapter(req.platform)
+
+    variants = req.variants
+    if not variants:
+        # 默认对比：DeepSeek Chat vs Azure（无 Azure 则退化为 DeepSeek Chat vs Reasoner）
+        variants = [CompareVariant(label="DeepSeek Chat", provider="deepseek", model="deepseek-chat")]
+        if settings.azure_openai_api_key and settings.azure_openai_endpoint:
+            variants.append(CompareVariant(label="GPT-4.1-mini (Azure)", provider="azure", model=settings.azure_openai_deployment))
+        else:
+            variants.append(CompareVariant(label="DeepSeek Reasoner", provider="deepseek", model="deepseek-reasoner"))
+
+    async def run_variant(v: CompareVariant) -> CompareVariantResult:
+        started = time.monotonic()
+        try:
+            provider = get_provider(v.provider, **({"model": v.model} if v.model else {}))
+            result = await asyncio.to_thread(adapter.adapt, req.content, provider)
+            built = _build_result(adapter, result)
+        except Exception as exc:  # noqa: BLE001  单模型失败不拖垮对比
+            built = _error_result(req.platform, f"适配失败: {exc}", adapter.display_name)
+        latency = int((time.monotonic() - started) * 1000)
+        return CompareVariantResult(
+            label=v.label,
+            provider=v.provider,
+            model=v.model or "",
+            latency_ms=latency,
+            result=built,
+        )
+
+    variant_results = await asyncio.gather(*[run_variant(v) for v in variants])
+    return CompareResponse(
+        platform=req.platform,
+        display_name=adapter.display_name,
+        variants=list(variant_results),
+    )
 
 
 def _error_result(name: str, message: str, display_name: str = "") -> PlatformResult:

@@ -150,10 +150,10 @@ class AzureProvider(_OpenAICompatProvider):
         client = AzureOpenAI(
             api_key=settings.azure_openai_api_key,
             azure_endpoint=settings.azure_openai_endpoint,
-            api_version="2024-10-21",
+            api_version=settings.azure_openai_api_version,
         )
-        # Azure 用 deployment 名而非模型名，默认 gpt-4.1-mini 部署
-        super().__init__(client, deployment or "gpt-4.1-mini", "azure")
+        # Azure 用 deployment 名而非模型名，默认读配置
+        super().__init__(client, deployment or settings.azure_openai_deployment, "azure")
 
 
 def get_provider(name: str = "deepseek", **kwargs) -> LLMProvider:
