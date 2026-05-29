@@ -6,15 +6,16 @@
 > 七牛云 × XEngineer 暑期实训营 · 题目二作品
 
 - **在线试用（已上线）**：https://publish.qiniu.zdwktlj.top
-- 演示视频：待录制上传（B 站）
+- **演示视频（47 秒）**：[在线观看](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)（自托管录屏，含旁白）
 - 架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 扩展指南：[docs/EXTENSION_GUIDE.md](docs/EXTENSION_GUIDE.md) · 部署文档：[docs/DEPLOY.md](docs/DEPLOY.md)
 
 ---
 
 ## 演示视频
 
-<!-- DEMO_VIDEO_PLACEHOLDER: 录制后把下方替换为 B 站可播放链接（封面图 + 链接） -->
-> 演示视频录制中，上传 B 站后在此放出可播放链接。脚本见 [docs/答辩.md](docs/答辩.md)。
+**▶ [在线演示视频（47 秒）](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)** — 自托管录屏，含旁白。
+
+完整走通核心闭环：载入内容 → 一键适配 4 平台 → 高保真手机壳预览 → 「复制并前往知乎发布」。讲解脚本见 [docs/答辩.md](docs/答辩.md)。
 
 ## 我们的产品决策：为什么不做"真发布"
 
