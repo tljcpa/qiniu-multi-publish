@@ -79,6 +79,23 @@ def test_get_provider_unknown_raises():
         get_provider("no-such-backend")
 
 
+def test_get_provider_azure_accepts_model_kwarg():
+    """get_provider('azure', model=...) 的 kwarg 必须能传给 AzureProvider。
+
+    回归测试：曾因 AzureProvider 形参名是 deployment 而非 model，导致
+    /compare 走 Azure 时报 TypeError。现在应在无 key 时抛 LLMError（配置缺失），
+    而不是 TypeError（参数不匹配）。
+    """
+    if os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT"):
+        # 有 key：应能正常构造
+        provider = get_provider("azure", model="some-deployment")
+        assert provider.name == "azure"
+    else:
+        # 无 key：应是 LLMError，绝不能是 TypeError
+        with pytest.raises(LLMError):
+            get_provider("azure", model="some-deployment")
+
+
 @pytest.mark.skipif(
     not os.getenv("DEEPSEEK_API_KEY"),
     reason="未设置 DEEPSEEK_API_KEY，跳过真实联网 smoke 测试",
