@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Loader2, Send } from "lucide-react";
 import Editor from "./components/Editor";
+import PreviewPanel from "./components/PreviewPanel";
 import {
   adaptContent,
   fetchPlatforms,
@@ -20,7 +21,6 @@ export default function App() {
   const [results, setResults] = useState<PlatformResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // 加载平台列表，默认全选
   useEffect(() => {
     fetchPlatforms()
       .then((list) => {
@@ -70,56 +70,51 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <Header />
-      <main className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-2">
-        {/* 左：输入区 */}
-        <section className="flex flex-col gap-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <input
-              className="w-full border-0 text-xl font-semibold placeholder-gray-300 focus:outline-none focus:ring-0"
-              placeholder="输入标题…"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <input
-              className="mt-2 w-full border-0 text-sm text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-0"
-              placeholder="标签，用逗号分隔（如：效率，成长）"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-            />
-          </div>
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        {/* 输入区 */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <section className="flex flex-col gap-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <input
+                className="w-full border-0 text-xl font-semibold placeholder-gray-300 focus:outline-none focus:ring-0"
+                placeholder="输入标题…"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <input
+                className="mt-2 w-full border-0 text-sm text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-0"
+                placeholder="标签，用逗号分隔（如：效率，成长）"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+              />
+            </div>
+            <PlatformSelector platforms={platforms} selected={selected} onToggle={togglePlatform} />
+            <button
+              onClick={handleAdapt}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+              {loading ? "正在适配各平台…" : "一键适配到所选平台"}
+            </button>
+            {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
+          </section>
 
-          <div className="min-h-[420px] flex-1">
+          <section className="min-h-[460px]">
             <Editor onMarkdownChange={setBodyMd} />
+          </section>
+        </div>
+
+        {/* 预览区（全宽，手机壳并排） */}
+        <div className="mt-8">
+          <div className="mb-4 flex items-baseline gap-2">
+            <h2 className="text-lg font-semibold">各平台预览</h2>
+            <span className="text-sm text-gray-400">所见即所得 · 贴进对应平台后的样子</span>
           </div>
-
-          <PlatformSelector
-            platforms={platforms}
-            selected={selected}
-            onToggle={togglePlatform}
-          />
-
-          <button
-            onClick={handleAdapt}
-            disabled={loading}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-            {loading ? "正在适配各平台…" : "一键适配"}
-          </button>
-
-          {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>
-          )}
-        </section>
-
-        {/* 右：结果区（PR11 基础版，PR12 升级为平台风格预览） */}
-        <section className="flex flex-col gap-4">
           {results.length === 0 && !loading && <EmptyState />}
           {loading && <LoadingState count={selected.length} />}
-          {results.map((r) => (
-            <ResultCard key={r.platform} result={r} />
-          ))}
-        </section>
+          {results.length > 0 && <PreviewPanel results={results} />}
+        </div>
       </main>
     </div>
   );
@@ -127,7 +122,7 @@ export default function App() {
 
 function Header() {
   return (
-    <header className="border-b border-gray-200 bg-white">
+    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Send size={20} className="text-gray-900" />
@@ -174,56 +169,22 @@ function PlatformSelector({
 
 function EmptyState() {
   return (
-    <div className="flex h-full min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 text-center text-gray-400">
+    <div className="flex h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 text-center text-gray-400">
       <Sparkles size={32} className="mb-3" />
       <p className="text-sm">输入内容并点击「一键适配」</p>
-      <p className="mt-1 text-xs">同一篇内容会被改写成各平台的原生风格</p>
+      <p className="mt-1 text-xs">同一篇内容会被改写成各平台的原生风格，并以真机样式预览</p>
     </div>
   );
 }
 
 function LoadingState({ count }: { count: number }) {
   return (
-    <div className="space-y-4">
+    <div className="flex gap-6 overflow-x-auto pb-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white p-5">
-          <div className="mb-3 h-5 w-1/3 rounded bg-gray-200" />
-          <div className="mb-2 h-4 w-full rounded bg-gray-100" />
-          <div className="h-4 w-4/5 rounded bg-gray-100" />
+        <div key={i} className="w-[300px] shrink-0">
+          <div className="h-[600px] animate-pulse rounded-[2.4rem] border-[11px] border-gray-200 bg-gray-100" />
         </div>
       ))}
-    </div>
-  );
-}
-
-function ResultCard({ result }: { result: PlatformResult }) {
-  if (result.error) {
-    return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-5">
-        <div className="font-medium text-red-700">{result.display_name}</div>
-        <div className="mt-1 text-sm text-red-500">适配失败：{result.error}</div>
-      </div>
-    );
-  }
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-          {result.display_name}
-        </span>
-        {result.model && <span className="text-xs text-gray-400">{result.model}</span>}
-      </div>
-      <h3 className="mb-2 text-base font-semibold">{result.title}</h3>
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{result.content}</p>
-      {result.hashtags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {result.hashtags.map((t) => (
-            <span key={t} className="text-xs text-blue-500">
-              #{t}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

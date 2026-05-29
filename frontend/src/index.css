@@ -46,3 +46,57 @@
   pointer-events: none;
   height: 0;
 }
+
+/* ===== 平台预览正文排版（渲染后的 Markdown） ===== */
+.preview-body p {
+  margin: 0.6em 0;
+  line-height: 1.75;
+}
+.preview-body h1 {
+  font-size: 1.15em;
+  font-weight: 700;
+  margin: 0.8em 0 0.4em;
+}
+.preview-body h2 {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin: 0.8em 0 0.4em;
+}
+.preview-body h3 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+}
+.preview-body ul,
+.preview-body ol {
+  padding-left: 1.3em;
+  margin: 0.5em 0;
+}
+.preview-body ul {
+  list-style: disc;
+}
+.preview-body ol {
+  list-style: decimal;
+}
+.preview-body li {
+  margin: 0.25em 0;
+}
+.preview-body strong {
+  font-weight: 700;
+}
+.preview-body blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 0.8em;
+  color: #6b7280;
+  margin: 0.6em 0;
+}
+/* 知乎：段落更长更紧凑，体现长文论证感 */
+.preview-body-zhihu p {
+  line-height: 1.8;
+  text-align: justify;
+}
+/* 小红书：行距更松，短句感 */
+.preview-body-xhs p {
+  margin: 0.45em 0;
+  line-height: 1.7;
+}
