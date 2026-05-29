@@ -4,7 +4,7 @@ import Editor from "./components/Editor";
 import PreviewPanel from "./components/PreviewPanel";
 import ComparePanel from "./components/ComparePanel";
 import {
-  adaptContent,
+  adaptStream,
   compareModels,
   fetchModels,
   fetchPlatforms,
@@ -94,9 +94,50 @@ export default function App() {
     }
     setLoading(true);
     setResults([]);
+    // 流式累积：按到达顺序维护各平台结果，边流边渲染（打字机）
+    const acc: Record<string, PlatformResult> = {};
+    const order: string[] = [];
+    const flush = () => setResults(order.map((p) => acc[p]));
     try {
-      const res = await adaptContent({ content: buildContent(), platforms: selected });
-      setResults(res);
+      await adaptStream(
+        { content: buildContent(), platforms: selected },
+        {
+          onMeta: (platform, displayName, previewTemplate) => {
+            acc[platform] = {
+              platform,
+              display_name: displayName,
+              title: "",
+              content: "",
+              summary: "",
+              hashtags: [],
+              model: "",
+              preview_template: previewTemplate,
+              formatted: "",
+              publish_intent: null,
+              error: null,
+              streaming: true,
+            };
+            order.push(platform);
+            flush();
+          },
+          onDelta: (platform, text) => {
+            const cur = acc[platform];
+            if (cur) {
+              acc[platform] = { ...cur, content: cur.content + text };
+              flush();
+            }
+          },
+          onDone: (platform, result) => {
+            acc[platform] = { ...result, streaming: false };
+            flush();
+          },
+          onError: (platform, err) => {
+            const cur = acc[platform];
+            acc[platform] = { ...(cur ?? ({} as PlatformResult)), platform, error: err, streaming: false };
+            flush();
+          },
+        }
+      );
     } catch (e) {
       setError(String(e));
     } finally {
@@ -235,9 +276,9 @@ export default function App() {
         <div className="mt-8">
           {mode === "adapt" ? (
             <>
-              <SectionTitle title="各平台预览" hint="所见即所得 · 贴进对应平台后的样子" />
+              <SectionTitle title="各平台预览" hint="所见即所得 · 边生成边逐字预览" />
               {results.length === 0 && !loading && <EmptyState text="输入内容并点击「一键适配」，看同一篇内容在各平台的原生风格" />}
-              {loading && <LoadingState count={selected.length} />}
+              {loading && results.length === 0 && <LoadingState count={selected.length} />}
               {results.length > 0 && <PreviewPanel results={results} />}
             </>
           ) : (

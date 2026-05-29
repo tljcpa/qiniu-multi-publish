@@ -13,10 +13,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from app import __version__
 from app.config import settings
@@ -37,6 +39,7 @@ from app.schemas import (
 import adapters  # noqa: F401
 from adapters.base import AdaptedResult, PlatformAdapter, all_adapters, get_adapter, platform_names
 from app.llm_provider import LLMError, get_provider
+from app.streaming import build_stream_messages, parse_streamed
 
 app = FastAPI(
     title="多平台内容发布工具 API",
@@ -191,6 +194,94 @@ async def compare(req: CompareRequest):
         platform=req.platform,
         display_name=adapter.display_name,
         variants=list(variant_results),
+    )
+
+
+def _sse(payload: dict) -> str:
+    """把一个事件序列化成 SSE 数据帧。"""
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+@app.post("/adapt/stream")
+async def adapt_stream(req: AdaptRequest):
+    """流式适配：多平台并发"打字机"，通过 SSE 边生成边推送（亮点：观感）。
+
+    每平台一个线程跑 provider.chat_stream，经队列汇流到单条 SSE 响应。
+    事件类型：meta（平台元信息）/ delta（增量文本）/ done（结构化结果）/ error / all_done。
+    """
+    targets = req.platforms
+    if not targets:
+        targets = platform_names()
+
+    async def event_gen():
+        # provider 初始化失败：对每个平台发 error 后收尾
+        try:
+            provider = get_provider(req.provider, **({"model": req.model} if req.model else {}))
+        except LLMError as exc:
+            for name in targets:
+                yield _sse({"type": "error", "platform": name, "error": str(exc)})
+            yield _sse({"type": "all_done"})
+            return
+
+        # 先发各平台元信息，前端据此先把空手机壳占位排好
+        valid: list[str] = []
+        for name in targets:
+            try:
+                adapter = get_adapter(name)
+            except KeyError as exc:
+                yield _sse({"type": "error", "platform": name, "error": str(exc)})
+                continue
+            valid.append(name)
+            yield _sse({
+                "type": "meta",
+                "platform": name,
+                "display_name": adapter.display_name,
+                "preview_template": adapter.preview_template(),
+            })
+
+        queue: asyncio.Queue = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+
+        def worker(name: str):
+            # 在线程里跑同步流式生成器，逐块经 call_soon_threadsafe 推入队列
+            try:
+                adapter = get_adapter(name)
+                messages = build_stream_messages(adapter, req.content)
+                buf: list[str] = []
+                for delta in provider.chat_stream(messages):
+                    buf.append(delta)
+                    loop.call_soon_threadsafe(
+                        queue.put_nowait, {"type": "delta", "platform": name, "text": delta}
+                    )
+                result = parse_streamed(name, "".join(buf), getattr(provider, "name", ""))
+                payload = _build_result(adapter, result).model_dump()
+                loop.call_soon_threadsafe(
+                    queue.put_nowait, {"type": "done", "platform": name, "result": payload}
+                )
+            except Exception as exc:  # noqa: BLE001  单平台失败不拖垮整体
+                loop.call_soon_threadsafe(
+                    queue.put_nowait, {"type": "error", "platform": name, "error": f"适配失败: {exc}"}
+                )
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, {"type": "_done", "platform": name})
+
+        for name in valid:
+            loop.run_in_executor(None, worker, name)
+
+        remaining = len(valid)
+        while remaining > 0:
+            evt = await queue.get()
+            if evt["type"] == "_done":
+                remaining -= 1
+                continue
+            yield _sse(evt)
+        yield _sse({"type": "all_done"})
+
+    # text/event-stream + 关闭代理缓冲
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

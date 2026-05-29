@@ -1,4 +1,5 @@
-// 预览面板：把每个平台结果套进手机壳，用对应平台的高保真预览组件渲染。
+// 预览面板：把每个平台结果套进手机壳。
+// 流式态显示逐字打字（原始文本 + 光标）；完成后切换为高保真平台预览。
 import PhoneFrame from "./PhoneFrame";
 import PublishActions from "./PublishActions";
 import { getChrome, renderPlatformInner } from "./previews/render";
@@ -18,13 +19,20 @@ export default function PreviewPanel({ results }: { results: PlatformResult[] })
                   <span className="mt-1 text-xs text-gray-400">{r.error}</span>
                 </div>
               </PhoneFrame>
+            ) : r.streaming ? (
+              <PhoneFrame statusLabel={r.display_name} topBarColor={chrome.topBar} darkStatus={chrome.dark}>
+                <div className="px-5 py-4 text-[14px] leading-relaxed text-gray-700">
+                  <div className="mb-2 text-xs font-medium text-gray-400">适配中…</div>
+                  <div className="typing-caret whitespace-pre-wrap break-words">{r.content}</div>
+                </div>
+              </PhoneFrame>
             ) : (
               <PhoneFrame statusLabel={r.display_name} topBarColor={chrome.topBar} darkStatus={chrome.dark}>
                 {renderPlatformInner(r)}
               </PhoneFrame>
             )}
             <div className="text-sm font-semibold text-gray-700">{r.display_name}</div>
-            {!r.error && <PublishActions result={r} />}
+            {!r.error && !r.streaming && <PublishActions result={r} />}
           </div>
         );
       })}

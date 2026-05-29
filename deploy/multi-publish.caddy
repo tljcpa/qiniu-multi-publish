@@ -12,9 +12,12 @@ publish.qiniu.zdwktlj.top {
 	encode gzip
 
 	# 后端 API：精确路径反代到后端容器 8082，避免与 SPA 路由冲突
-	@api path /platforms /models /adapt /compare /health /docs /openapi.json
+	@api path /platforms /models /adapt /adapt/stream /compare /health /docs /openapi.json
 	handle @api {
-		reverse_proxy 127.0.0.1:8082
+		# flush_interval -1：关闭缓冲，保证 SSE（/adapt/stream）逐帧实时下发
+		reverse_proxy 127.0.0.1:8082 {
+			flush_interval -1
+		}
 	}
 
 	# 其余请求走 SPA：找不到文件回退到 index.html

@@ -28,6 +28,8 @@ export interface PlatformResult {
   formatted: string;
   publish_intent: PublishIntent | null;
   error: string | null;
+  // 前端流式态标记：true 表示该平台仍在逐字生成中
+  streaming?: boolean;
 }
 
 export interface ContentInput {
@@ -62,6 +64,69 @@ export async function adaptContent(req: AdaptRequest): Promise<PlatformResult[]>
   }
   const data = await resp.json();
   return data.results as PlatformResult[];
+}
+
+// ---------------- 流式适配（SSE 打字机）----------------
+export interface StreamHandlers {
+  onMeta: (platform: string, displayName: string, previewTemplate: string) => void;
+  onDelta: (platform: string, text: string) => void;
+  onDone: (platform: string, result: PlatformResult) => void;
+  onError: (platform: string, error: string) => void;
+  onAllDone?: () => void;
+}
+
+export async function adaptStream(req: AdaptRequest, handlers: StreamHandlers): Promise<void> {
+  const resp = await fetch(`${API_BASE}/adapt/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok || !resp.body) {
+    throw new Error(`流式适配请求失败: ${resp.status}`);
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  // 持续读取 SSE，按空行分帧
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buf += decoder.decode(value, { stream: true });
+    const frames = buf.split("\n\n");
+    buf = frames.pop() ?? "";
+    for (const frame of frames) {
+      const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
+      if (!dataLine) {
+        continue;
+      }
+      const evt = JSON.parse(dataLine.slice(6));
+      dispatchStreamEvent(evt, handlers);
+    }
+  }
+}
+
+function dispatchStreamEvent(evt: any, h: StreamHandlers) {
+  switch (evt.type) {
+    case "meta":
+      h.onMeta(evt.platform, evt.display_name, evt.preview_template);
+      break;
+    case "delta":
+      h.onDelta(evt.platform, evt.text);
+      break;
+    case "done":
+      h.onDone(evt.platform, evt.result as PlatformResult);
+      break;
+    case "error":
+      h.onError(evt.platform, evt.error);
+      break;
+    case "all_done":
+      h.onAllDone?.();
+      break;
+    default:
+      break;
+  }
 }
 
 // ---------------- 多模型对比 ----------------
