@@ -2,6 +2,7 @@
 // 平台 -> 组件的映射；未知平台回退到通用渲染，保证新增平台也能显示。
 
 import PhoneFrame from "./PhoneFrame";
+import PublishActions from "./PublishActions";
 import WechatPreview from "./previews/WechatPreview";
 import ZhihuPreview from "./previews/ZhihuPreview";
 import BilibiliPreview from "./previews/BilibiliPreview";
@@ -58,6 +59,7 @@ export default function PreviewPanel({ results }: { results: PlatformResult[] })
               </PhoneFrame>
             )}
             <div className="text-sm font-semibold text-gray-700">{r.display_name}</div>
+            {!r.error && <PublishActions result={r} />}
           </div>
         );
       })}
