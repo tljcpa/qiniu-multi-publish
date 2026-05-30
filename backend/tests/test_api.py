@@ -102,6 +102,31 @@ def test_stream_empty_content_rejected():
     assert resp.status_code == 400
 
 
+def test_rate_limit_returns_429(monkeypatch):
+    """同 IP 快速连发超过阈值(30/分钟)后应返回 429，挡脚本滥刷烧配额。"""
+    payload = {"title": "t", "content": "c", "summary": "", "hashtags": []}
+    monkeypatch.setattr(main, "get_provider", lambda *a, **k: FakeProvider(payload))
+    body = {"content": {"title": "x", "body_md": "y", "tags": []}, "platforms": ["wechat"]}
+    codes = [client.post("/adapt", json=body).status_code for _ in range(31)]
+    assert codes.count(200) == 30
+    assert codes[-1] == 429
+
+
+def test_rate_limit_applies_to_compare_and_stream(monkeypatch):
+    """/compare 与 /adapt/stream 同样受限流保护。"""
+    payload = {"title": "t", "content": "c", "summary": "", "hashtags": []}
+    monkeypatch.setattr(main, "get_provider", lambda *a, **k: FakeProvider(payload))
+    # 先把预算耗尽
+    body = {"content": {"title": "x", "body_md": "y", "tags": []}, "platforms": ["wechat"]}
+    for _ in range(30):
+        client.post("/adapt", json=body)
+    # 同 IP 再调 /compare 与 /adapt/stream 应被限流
+    r1 = client.post("/compare", json={"content": {"title": "x", "body_md": "y", "tags": []}, "platform": "wechat"})
+    r2 = client.post("/adapt/stream", json=body)
+    assert r1.status_code == 429
+    assert r2.status_code == 429
+
+
 def test_models_lists_deepseek():
     """GET /models 至少包含两个 DeepSeek 选项。"""
     resp = client.get("/models")
