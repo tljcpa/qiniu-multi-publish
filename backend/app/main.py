@@ -196,7 +196,10 @@ def list_models():
 async def compare(req: CompareRequest):
     """同一平台、多个模型并发适配，返回各自结果与耗时，供用户对比挑选（亮点6）。"""
     _require_nonempty(req.content)
-    adapter = get_adapter(req.platform)
+    try:
+        adapter = get_adapter(req.platform)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
     variants = req.variants
     if not variants:
