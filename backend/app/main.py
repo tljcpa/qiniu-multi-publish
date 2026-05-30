@@ -16,7 +16,7 @@ import asyncio
 import json
 import time
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -39,6 +39,7 @@ from app.schemas import (
 import adapters  # noqa: F401
 from adapters.base import AdaptedResult, PlatformAdapter, all_adapters, get_adapter, platform_names
 from app.llm_provider import LLMError, get_provider
+from app.ratelimit import cost_rate_limit
 from app.streaming import build_stream_messages, parse_streamed
 
 app = FastAPI(
@@ -99,7 +100,7 @@ def list_platforms():
     return infos
 
 
-@app.post("/adapt", response_model=AdaptResponse)
+@app.post("/adapt", response_model=AdaptResponse, dependencies=[Depends(cost_rate_limit)])
 async def adapt(req: AdaptRequest):
     """把一份内容并发适配到多个平台。
 
@@ -170,7 +171,7 @@ def list_models():
     return options
 
 
-@app.post("/compare", response_model=CompareResponse)
+@app.post("/compare", response_model=CompareResponse, dependencies=[Depends(cost_rate_limit)])
 async def compare(req: CompareRequest):
     """同一平台、多个模型并发适配，返回各自结果与耗时，供用户对比挑选（亮点6）。"""
     _require_nonempty(req.content)
@@ -215,7 +216,7 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-@app.post("/adapt/stream")
+@app.post("/adapt/stream", dependencies=[Depends(cost_rate_limit)])
 async def adapt_stream(req: AdaptRequest):
     """流式适配：多平台并发"打字机"，通过 SSE 边生成边推送（亮点：观感）。
 
