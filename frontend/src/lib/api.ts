@@ -166,6 +166,49 @@ export async function fetchModels(): Promise<ModelOption[]> {
   return resp.json();
 }
 
+// ---------------- 发布策略 Agent ----------------
+export interface PlatformScore {
+  platform: string;
+  display_name: string;
+  score: number;
+  reason: string;
+  recommended: boolean;
+}
+
+export interface IdeasResult {
+  platform: string;
+  display_name: string;
+  titles: string[];
+  hashtags: string[];
+  cover_copy: string[];
+  model: string;
+  error: string | null;
+}
+
+export async function fetchStrategy(content: ContentInput): Promise<PlatformScore[]> {
+  const resp = await fetch(`${API_BASE}/strategy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!resp.ok) {
+    throw new Error(`策略分析失败: ${resp.status}`);
+  }
+  return (await resp.json()).scores as PlatformScore[];
+}
+
+export async function fetchIdeas(content: ContentInput, platform: string): Promise<IdeasResult> {
+  const resp = await fetch(`${API_BASE}/ideas`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, platform }),
+  });
+  if (!resp.ok) {
+    throw new Error(`创意生成失败: ${resp.status}`);
+  }
+  return resp.json();
+}
+
 export async function compareModels(
   content: ContentInput,
   platform: string,
