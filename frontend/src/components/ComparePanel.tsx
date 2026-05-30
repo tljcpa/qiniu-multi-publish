@@ -35,7 +35,7 @@ export default function ComparePanel({ variants, preferredKey, onPick }: Compare
             </div>
 
             {v.result.error ? (
-              <PhoneFrame statusLabel={v.label} topBarColor="#ffffff" darkStatus>
+              <PhoneFrame statusLabel={v.label} topBarColor="#fbfaf7" darkStatus>
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-red-500">
                   适配失败
                   <span className="mt-1 text-xs text-gray-400">{v.result.error}</span>

@@ -25,6 +25,9 @@ export default {
           dim: "#a8a08f",
           faint: "#7b7363",
         },
+        // 手机壳：近黑机身 + 近白屏幕（避免纯黑纯白）
+        bezel: "#100e0c",
+        screen: "#fbfaf7",
         // 平台品牌色（预览内部用，保持真实）
         wechat: "#07C160",
         zhihu: "#0066FF",
@@ -32,16 +35,12 @@ export default {
         xhs: "#FF2442",
       },
       fontFamily: {
-        // 拉丁/UI 用 IBM Plex Sans（刻意非 Inter 默认），CJK 走系统原生
-        sans: [
-          '"IBM Plex Sans"',
-          '"PingFang SC"',
-          '"Microsoft YaHei"',
-          '"Noto Sans SC"',
-          "sans-serif",
-        ],
-        // 元数据/标签/数字用等宽，制造工具遥测质感
-        mono: ['"IBM Plex Mono"', "SFMono-Regular", "ui-monospace", "monospace"],
+        // 正文/UI：思源黑体（写作者工作台）
+        sans: ['"Noto Sans SC"', '"PingFang SC"', '"Microsoft YaHei"', "sans-serif"],
+        // 标题：思源宋体（编辑/出版气质）
+        serif: ['"Noto Serif SC"', '"Songti SC"', '"SimSun"', "serif"],
+        // 数据/遥测用系统等宽（非 Inter/Roboto，制造工作台精度感）
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       borderRadius: {
         // 克制圆角

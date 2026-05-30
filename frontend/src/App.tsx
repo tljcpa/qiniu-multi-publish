@@ -200,7 +200,7 @@ export default function App() {
                 </button>
               </div>
               <input
-                className="mt-2 w-full bg-transparent text-lg font-semibold text-paper placeholder-paper-faint focus:outline-none"
+                className="mt-2 w-full bg-transparent font-serif text-xl font-semibold text-paper placeholder-paper-faint focus:outline-none"
                 placeholder="标题"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -316,11 +316,11 @@ export default function App() {
 
 function TopBar() {
   return (
-    <header className="sticky top-0 z-30 border-b border-ink-700 bg-ink-950/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-ink-700 bg-ink-950">
       <div className="mx-auto flex max-w-[1280px] items-center justify-between px-5 py-2.5">
         <div className="flex items-center gap-2.5">
-          <span className="h-4 w-4 rounded-sm bg-clay" />
-          <span className="text-[15px] font-semibold tracking-tight text-paper">多平台内容发布工具</span>
+          <span className="h-3.5 w-3.5 rounded-[2px] bg-clay" />
+          <span className="font-serif text-[17px] font-semibold text-paper">多平台内容发布工具</span>
           <span className="hidden font-mono text-[11px] text-paper-faint sm:inline">multi-publish</span>
         </div>
         <span className="hidden font-mono text-[11px] text-paper-dim md:inline">适配 → 预览 → 复制 → 跳转 · 不假装能发</span>
@@ -334,7 +334,7 @@ function Panel({ children }: { children: ReactNode }) {
 }
 
 function Eyebrow({ children }: { children: ReactNode }) {
-  return <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-paper-faint">{children}</div>;
+  return <div className="text-[11px] font-medium tracking-[0.08em] text-paper-faint">{children}</div>;
 }
 
 function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
@@ -388,7 +388,7 @@ function ResultsHeader({ title, results }: { title: string; results: PlatformRes
   const done = results.filter((r) => !r.streaming && !r.error).length;
   return (
     <div className="mb-4 flex items-baseline justify-between">
-      <h2 className="text-[15px] font-semibold text-paper">{title}</h2>
+      <h2 className="font-serif text-[18px] font-semibold text-paper">{title}</h2>
       {results.length > 0 && (
         <span className="font-mono text-[11px] text-paper-faint">
           {done}/{results.length} 完成 · 流式 SSE
@@ -402,7 +402,7 @@ function CompareHeader({ platform, platforms, count }: { platform: string; platf
   const name = platforms.find((p) => p.name === platform)?.display_name ?? platform;
   return (
     <div className="mb-4 flex items-baseline justify-between">
-      <h2 className="text-[15px] font-semibold text-paper">多模型对比</h2>
+      <h2 className="font-serif text-[18px] font-semibold text-paper">多模型对比</h2>
       <span className="font-mono text-[11px] text-paper-faint">{count > 0 ? `${name} · ${count} 个模型` : "同一平台 · 不同模型"}</span>
     </div>
   );

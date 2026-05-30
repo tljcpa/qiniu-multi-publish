@@ -6,8 +6,8 @@ import { renderMarkdown } from "../../lib/markdown";
 export default function XhsPreview({ result }: { result: PlatformResult }) {
   return (
     <div className="flex h-full flex-col text-[14px] text-gray-800">
-      {/* 封面：小红书是图片优先，这里用品牌色渐变 + 标题文案模拟封面 */}
-      <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-gradient-to-br from-xhs to-pink-400 px-5 text-center">
+      {/* 封面：小红书图片优先，这里用品牌色实底 + 标题文案模拟封面（不用渐变） */}
+      <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-xhs px-5 text-center">
         <span className="text-[19px] font-extrabold leading-snug text-white drop-shadow">
           {result.title}
         </span>
