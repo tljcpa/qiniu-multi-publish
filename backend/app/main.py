@@ -272,7 +272,7 @@ async def ideas(req: IdeasRequest):
 
 # ---------------------- AI 起草管线 ----------------------
 
-# 起草 prompt（喂给 how88，非密内容，只有用户输入的主题）
+# 起草 prompt（喂给 DeepSeek，非密内容，只有用户输入的主题）
 _DRAFT_SYSTEM = (
     "你是一名专业的内容创作者，擅长为多平台写出有观点、有案例的原创文章。"
     "请根据用户给出的主题，创作一篇 600-800 字的文章。"
@@ -291,28 +291,29 @@ _REVIEW_SYSTEM = (
 
 @app.post("/draft", response_model=DraftResponse, dependencies=[Depends(cost_rate_limit)])
 async def draft(req: DraftRequest):
-    """AI 起草管线：how88（opus-4-8）起草初稿，DeepSeek 审核润色。
+    """AI 起草管线：DeepSeek 起草初稿，再由 DeepSeek 轻量润色。
 
-    how88 免费，消耗零 DeepSeek 余额；DeepSeek 只做轻量润色，token 消耗极低。
+    起草与润色分两步、低温润色不重写结构。how88 中转已弃用（额度不可靠）。
     """
-    # Step 1：how88 起草（只传用户主题，无任何密钥或敏感信息）
+    # Step 1：DeepSeek 起草（只传用户主题，无任何密钥或敏感信息）
     try:
-        how88 = get_provider("how88")
+        drafter = get_provider("deepseek")
     except LLMError as exc:
-        raise HTTPException(status_code=503, detail=f"how88 不可用: {exc}")
+        raise HTTPException(status_code=503, detail=f"起草服务不可用: {exc}")
 
     draft_messages = [
         {"role": "system", "content": _DRAFT_SYSTEM},
         {"role": "user", "content": f"主题：{req.topic}"},
     ]
     try:
-        raw = await asyncio.to_thread(how88.chat_json, draft_messages, temperature=0.8)
+        raw = await asyncio.to_thread(drafter.chat_json, draft_messages, temperature=0.8)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"how88 起草失败: {exc}")
+        raise HTTPException(status_code=502, detail=f"起草失败: {exc}")
 
     draft_title = str(raw.get("title", req.topic))
     draft_body = str(raw.get("body_md", ""))
     draft_tags: list[str] = [str(t) for t in raw.get("tags", [])]
+    draft_model_name = getattr(drafter, "_model", "deepseek")
 
     # Step 2：DeepSeek 轻量润色（温度低、不重写结构）
     try:
@@ -323,7 +324,7 @@ async def draft(req: DraftRequest):
             title=draft_title,
             body_md=draft_body,
             tags=draft_tags,
-            draft_model=getattr(how88, "_model", settings.how88_model),
+            draft_model=draft_model_name,
             review_model=f"(跳过: {exc})",
         )
 
@@ -345,7 +346,7 @@ async def draft(req: DraftRequest):
             title=str(refined.get("title", draft_title)),
             body_md=str(refined.get("body_md", draft_body)),
             tags=[str(t) for t in refined.get("tags", draft_tags)],
-            draft_model=getattr(how88, "_model", settings.how88_model),
+            draft_model=draft_model_name,
             review_model=getattr(reviewer, "name", req.review_provider),
         )
     except Exception:
@@ -354,7 +355,7 @@ async def draft(req: DraftRequest):
             title=draft_title,
             body_md=draft_body,
             tags=draft_tags,
-            draft_model=getattr(how88, "_model", settings.how88_model),
+            draft_model=draft_model_name,
             review_model="(润色失败，返回初稿)",
         )
 
