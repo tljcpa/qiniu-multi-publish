@@ -6,7 +6,7 @@
 > 七牛云 × XEngineer 暑期实训营 · 题目二作品
 
 - **在线试用（已上线）**：https://publish.qiniu.zdwktlj.top
-- **演示视频（85 秒）**：[在线观看](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)（自托管录屏，含旁白）
+- **演示视频（85 秒）**：[在线观看](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)（自托管录屏，含旁白与字幕，画音三对齐）
 - 架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 扩展指南：[docs/EXTENSION_GUIDE.md](docs/EXTENSION_GUIDE.md) · 部署文档：[docs/DEPLOY.md](docs/DEPLOY.md)
 
 ---
