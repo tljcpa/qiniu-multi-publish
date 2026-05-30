@@ -141,3 +141,34 @@ class IdeasResponse(BaseModel):
     cover_copy: list[str]
     model: str = ""
     error: str | None = None
+
+
+# ---------------------- 历史账户 ----------------------
+
+class HistoryItem(BaseModel):
+    """单条历史记录（对应 history 表一行）。"""
+
+    id: int
+    session_id: str
+    title: str
+    body_md: str
+    tags: list[str]
+    platforms: list[str]
+    results: list[PlatformResult]
+    created_at: str
+
+
+class SaveHistoryRequest(BaseModel):
+    """POST /history 请求体。"""
+
+    session_id: str = Field(..., min_length=1, max_length=64, description="客户端匿名 UUID")
+    title: str = ""
+    body_md: str = ""
+    tags: list[str] = Field(default_factory=list)
+    platforms: list[str] = Field(default_factory=list)
+    results: list[PlatformResult] = Field(default_factory=list)
+
+
+class HistoryListResponse(BaseModel):
+    items: list[HistoryItem]
+    total: int

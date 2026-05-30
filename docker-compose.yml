@@ -9,6 +9,12 @@ services:
       - "8082:8082"
     env_file:
       - ./backend/.env
+    volumes:
+      # SQLite 数据库持久化：容器重建不丢历史记录
+      - backend_data:/data
     restart: unless-stopped
 
   # frontend 服务与 Caddy 反向代理在 PR14 接入
+
+volumes:
+  backend_data:

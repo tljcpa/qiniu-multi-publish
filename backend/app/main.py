@@ -22,6 +22,7 @@ from fastapi.responses import StreamingResponse
 
 from app import __version__
 from app.config import settings
+from app.database import history_delete, history_list, history_save, init_db
 from app.schemas import (
     AdaptRequest,
     AdaptResponse,
@@ -29,6 +30,8 @@ from app.schemas import (
     CompareResponse,
     CompareVariant,
     CompareVariantResult,
+    HistoryItem,
+    HistoryListResponse,
     IdeasRequest,
     IdeasResponse,
     ModelOption,
@@ -36,6 +39,7 @@ from app.schemas import (
     PlatformResult,
     PlatformScore,
     PublishIntent,
+    SaveHistoryRequest,
     StrategyRequest,
     StrategyResponse,
 )
@@ -53,6 +57,12 @@ app = FastAPI(
     description="一份内容自动适配多平台格式与风格 - 适配 / 预览 / 复制 / 跳转",
     version=__version__,
 )
+
+
+@app.on_event("startup")
+def startup() -> None:
+    """应用启动时初始化数据库（建表幂等，已存在则跳过）。"""
+    init_db()
 
 # CORS：生产前端与后端同源（经 Caddy），CORS 仅对开发/外部调用生效。
 # 收敛到已知来源而非通配，避免任意站点借我们的后端消耗 LLM 配额。
@@ -342,6 +352,63 @@ async def adapt_stream(req: AdaptRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ---------------------- 历史账户路由 ----------------------
+
+def _row_to_history_item(row: dict) -> HistoryItem:
+    """把 database.py 返回的原始 dict 反序列化成 HistoryItem。"""
+    import json as _json
+
+    return HistoryItem(
+        id=row["id"],
+        session_id=row["session_id"],
+        title=row["title"],
+        body_md=row["body_md"],
+        tags=_json.loads(row["tags_json"] or "[]"),
+        platforms=_json.loads(row["platforms_json"] or "[]"),
+        results=[PlatformResult(**r) for r in _json.loads(row["results_json"] or "[]")],
+        created_at=row["created_at"],
+    )
+
+
+@app.get("/history", response_model=HistoryListResponse)
+def get_history(session_id: str, limit: int = 20):
+    """查询当前 session 的历史记录（最多 limit 条，默认 20）。"""
+    if not session_id or len(session_id) > 64:
+        raise HTTPException(status_code=400, detail="session_id 非法")
+    rows = history_list(session_id, min(limit, 50))
+    items = [_row_to_history_item(r) for r in rows]
+    return HistoryListResponse(items=items, total=len(items))
+
+
+@app.post("/history", response_model=HistoryItem)
+def save_history(req: SaveHistoryRequest):
+    """保存一次适配历史（前端在适配完成后自动调用）。"""
+    # 只保存至少有一个成功结果的记录
+    success = [r for r in req.results if not r.error]
+    if not success:
+        raise HTTPException(status_code=400, detail="没有成功的适配结果，不保存")
+    row = history_save(
+        session_id=req.session_id,
+        title=req.title,
+        body_md=req.body_md,
+        tags=req.tags,
+        platforms=req.platforms,
+        results=[r.model_dump() for r in req.results],
+    )
+    return _row_to_history_item(row)
+
+
+@app.delete("/history/{item_id}")
+def delete_history(item_id: int, session_id: str):
+    """删除指定历史条目（只能删自己 session 的）。"""
+    if not session_id or len(session_id) > 64:
+        raise HTTPException(status_code=400, detail="session_id 非法")
+    deleted = history_delete(item_id, session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="记录不存在或无权删除")
+    return {"ok": True}
 
 
 def _error_result(name: str, message: str, display_name: str = "") -> PlatformResult:
