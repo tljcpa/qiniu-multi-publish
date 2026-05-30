@@ -18,6 +18,13 @@ echo "==> 构建前端静态资源"
 cd frontend
 npm install --no-audit --no-fund
 npm run build
+# vite build 会清空 dist；从稳定位置回拷演示视频（含旁白的大文件，不入 git）
+DEMO="$APP_DIR/media/demo/multi-publish-demo.mp4"
+if [ -f "$DEMO" ]; then
+  mkdir -p dist/demo
+  cp -f "$DEMO" dist/demo/multi-publish-demo.mp4
+  echo "==> 已回拷演示视频到 dist/demo"
+fi
 cd ..
 
 echo "==> 重载 Caddy"
