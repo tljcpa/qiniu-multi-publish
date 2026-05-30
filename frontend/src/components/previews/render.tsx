@@ -6,16 +6,16 @@ import XhsPreview from "./XhsPreview";
 import type { PlatformResult } from "../../lib/api";
 import { renderMarkdown } from "../../lib/markdown";
 
-// 各平台手机壳顶栏外观
+// 各平台手机壳顶栏外观（近白，避免纯白）
 export const CHROME: Record<string, { topBar: string; dark: boolean }> = {
-  wechat: { topBar: "#ffffff", dark: true },
-  zhihu: { topBar: "#ffffff", dark: true },
-  bilibili: { topBar: "#ffffff", dark: true },
+  wechat: { topBar: "#fbfaf7", dark: true },
+  zhihu: { topBar: "#fbfaf7", dark: true },
+  bilibili: { topBar: "#fbfaf7", dark: true },
   xhs: { topBar: "#FF2442", dark: false },
 };
 
 export function getChrome(name: string) {
-  return CHROME[name] ?? { topBar: "#ffffff", dark: true };
+  return CHROME[name] ?? { topBar: "#fbfaf7", dark: true };
 }
 
 export function renderPlatformInner(result: PlatformResult) {

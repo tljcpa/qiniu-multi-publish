@@ -10,7 +10,7 @@ body,
 body {
   background-color: #191713; /* ink-900 */
   color: #ece6da; /* paper */
-  font-family: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
