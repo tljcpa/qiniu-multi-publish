@@ -41,6 +41,9 @@
 | `preview_template()` | `"generic"` | 想让前端用该平台专属预览外观时（PR12 的 CSS 模板 key）。 |
 | `publish_intent(adapted)` | `{clipboard: format_content(...), url: editor_url}` | 极少需要；除非跳转 URL 要带动态参数。 |
 | `extension_guide()` | `""` | 强烈建议填：记录该平台坑位（字符限制、标签支持、配图要求）。 |
+| `strategy_profile()` | 通用档案 | 发布策略 Agent 据此判断"该不该发本平台"。**强烈建议填**：内容类型 / 长度甜区 / 调性。写了就自动进入"该发哪些平台"的打分，无需改 Agent。 |
+| `ideas_schema()` | `{titles, hashtags, cover_copy}` | 平台创意需要额外字段时覆写。 |
+| `generate_ideas()` | 基类按 `style_prompt` 产出标题/标签/封面文案 | 极少需要覆写；除非该平台创意逻辑特殊。 |
 
 ### 1.3 你几乎不用碰的模板方法
 

@@ -42,6 +42,25 @@ class AdaptedResult(BaseModel):
     model: str = Field(default="", description="使用的 LLM 后端，用于多模型对比标注")
 
 
+class PlatformIdeas(BaseModel):
+    """发布策略 Agent 为某平台生成的创意点子（标题/标签/封面文案）。"""
+
+    platform: str
+    titles: list[str] = Field(default_factory=list, description="符合本平台风格的标题候选")
+    hashtags: list[str] = Field(default_factory=list, description="本平台话题标签（不含 #）")
+    cover_copy: list[str] = Field(default_factory=list, description="封面/首图文案建议")
+    model: str = Field(default="")
+
+
+def _coerce_list(value) -> list[str]:
+    """把 LLM 可能返回的字符串/列表统一成字符串列表。"""
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        return [s.strip().lstrip("#") for s in value.replace("，", ",").split(",") if s.strip()]
+    return []
+
+
 # ---------------------------------------------------------------------------
 # 抽象基类
 # ---------------------------------------------------------------------------
@@ -121,6 +140,59 @@ class PlatformAdapter(ABC):
     def extension_guide(self) -> str:
         """该平台开发注意事项（字符限制、标签支持等），默认空。"""
         return ""
+
+    # ---------------------- 发布策略：平台定位档案 + 创意生成 ----------------------
+    def strategy_profile(self) -> dict:
+        """该平台适合什么内容（供发布策略 Agent 打分判断该不该发）。
+
+        默认通用档案；每个平台覆写以描述自己的内容类型 / 长度甜区 / 调性。
+        新平台只要填这个档案，就能自动进入"该发哪些平台"的打分，无需改 Agent。
+        """
+        return {
+            "content_types": ["通用图文"],
+            "ideal_length": "中等",
+            "tone": "中性",
+            "note": "",
+        }
+
+    def ideas_schema(self) -> dict:
+        """创意生成的 JSON 输出说明（标题/标签/封面文案），子类可覆写补字段。"""
+        return {
+            "titles": "3 个符合本平台风格的标题候选（字符串数组）",
+            "hashtags": "5-8 个本平台话题标签，不带 # 号（字符串数组）",
+            "cover_copy": "1-2 条封面/首图文案建议（字符串数组）",
+        }
+
+    def generate_ideas(self, content: ContentInput, provider: LLMProvider, *,
+                       temperature: float = 0.8) -> PlatformIdeas:
+        """为本平台生成原生标题/话题标签/封面文案建议（不改写正文）。
+
+        复用 style_prompt 保证创意符合平台调性；temperature 略高以增创意多样性。
+        """
+        messages: list[dict] = [{
+            "role": "system",
+            "content": self.style_prompt() + "\n\n你现在只产出发布创意（标题、话题标签、封面文案），不要改写或输出正文。",
+        }]
+        messages.append({"role": "user", "content": self._build_ideas_prompt(content)})
+        raw = provider.chat_json(messages, temperature=temperature)
+        return PlatformIdeas(
+            platform=self.name,
+            titles=_coerce_list(raw.get("titles")),
+            hashtags=_coerce_list(raw.get("hashtags")),
+            cover_copy=_coerce_list(raw.get("cover_copy")),
+            model=getattr(provider, "name", ""),
+        )
+
+    def _build_ideas_prompt(self, content: ContentInput) -> str:
+        schema_desc = json.dumps(self.ideas_schema(), ensure_ascii=False, indent=2)
+        tag_line = "、".join(content.tags) or "（无）"
+        return (
+            f"根据下面这篇内容，为本平台生成发布创意。\n\n"
+            f"原标题：{content.title}\n"
+            f"作者标签：{tag_line}\n"
+            f"原正文（节选）：\n{content.body_md[:1200]}\n\n"
+            f"只输出一个 JSON 对象，字段含义如下：\n{schema_desc}"
+        )
 
     # ---------------------- 模板方法（编排，基类统一实现） ----------------------
     def adapt(self, content: ContentInput, provider: LLMProvider, *,

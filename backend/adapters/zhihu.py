@@ -30,6 +30,14 @@ class ZhihuAdapter(PlatformAdapter):
             "保持原文事实与观点，只改写表达风格，不编造数据或引用。"
         )
 
+    def strategy_profile(self) -> dict:
+        return {
+            "content_types": ["问题解答", "专业分析", "经验复盘", "行业科普"],
+            "ideal_length": "中长（结构化论证）",
+            "tone": "理性、严谨、信息密度高",
+            "note": "适合讲清楚'为什么/怎么做'的有论证内容；营销腔、纯情绪种草不吃香。",
+        }
+
     def extension_guide(self) -> str:
         return (
             "知乎坑位：① 知乎正文支持 Markdown 但公式/代码块渲染有差异；"
