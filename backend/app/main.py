@@ -390,11 +390,12 @@ async def export_zip(req: ExportRequest):
         zf.writestr("README.txt", "\n".join(readme_lines).encode("utf-8"))
 
     zip_bytes = buf.getvalue()
-    slug = (req.title or "content")[:20].replace(" ", "-")
+    # Content-Disposition 头只能用 latin-1，中文需用 RFC 5987 的 filename* 参数
+    # 为简单起见，用固定英文文件名，避免编码问题
     return Response(
         content=zip_bytes,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="multi-publish-{slug}.zip"'},
+        headers={"Content-Disposition": 'attachment; filename="multi-publish-export.zip"'},
     )
 
 
