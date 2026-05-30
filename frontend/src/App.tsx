@@ -3,19 +3,25 @@ import { Loader2, ArrowRight, GitCompare } from "lucide-react";
 import Editor from "./components/Editor";
 import PreviewPanel from "./components/PreviewPanel";
 import ComparePanel from "./components/ComparePanel";
+import StrategyPanel from "./components/StrategyPanel";
 import {
   adaptStream,
   compareModels,
+  fetchIdeas,
   fetchModels,
   fetchPlatforms,
+  fetchStrategy,
   type CompareVariantResult,
+  type IdeasResult,
   type ModelOption,
   type PlatformInfo,
   type PlatformResult,
+  type PlatformScore,
 } from "./lib/api";
 import { getPreferredModel, setPreferredModel } from "./lib/preferences";
 
-type Mode = "adapt" | "compare";
+type Mode = "adapt" | "compare" | "strategy";
+type IdeasState = IdeasResult | "loading" | undefined;
 
 // 真实示例文章（demo 一键灌入，杜绝占位文案）
 const SAMPLE = {
@@ -50,6 +56,10 @@ export default function App() {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [compareResults, setCompareResults] = useState<CompareVariantResult[]>([]);
   const [preferredKey, setPreferredKey] = useState<string | null>(null);
+
+  // strategy 模式
+  const [scores, setScores] = useState<PlatformScore[]>([]);
+  const [ideasMap, setIdeasMap] = useState<Record<string, IdeasState>>({});
 
   useEffect(() => {
     fetchPlatforms()
@@ -180,6 +190,35 @@ export default function App() {
     setPreferredKey(`${v.provider}:${v.model}`);
   }
 
+  async function handleStrategy() {
+    if (!ensureInput()) {
+      return;
+    }
+    setLoading(true);
+    setScores([]);
+    setIdeasMap({});
+    try {
+      setScores(await fetchStrategy(buildContent()));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGenerateIdeas(platform: string) {
+    setIdeasMap((m) => ({ ...m, [platform]: "loading" }));
+    try {
+      const r = await fetchIdeas(buildContent(), platform);
+      setIdeasMap((m) => ({ ...m, [platform]: r }));
+    } catch (e) {
+      setIdeasMap((m) => ({
+        ...m,
+        [platform]: { platform, display_name: platform, titles: [], hashtags: [], cover_copy: [], model: "", error: String(e) },
+      }));
+    }
+  }
+
   const charCount = bodyMd.length;
 
   return (
@@ -215,7 +254,7 @@ export default function App() {
 
             <ModeToggle mode={mode} onChange={setMode} />
 
-            {mode === "adapt" ? (
+            {mode === "adapt" && (
               <>
                 <div>
                   <Eyebrow>目标平台</Eyebrow>
@@ -237,7 +276,18 @@ export default function App() {
                   {loading ? "适配中…" : <>一键适配 <ArrowRight size={15} /></>}
                 </PrimaryButton>
               </>
-            ) : (
+            )}
+            {mode === "strategy" && (
+              <>
+                <p className="text-[13px] leading-relaxed text-paper-dim">
+                  策略 Agent 会判断这篇内容更适合发到哪些平台，并按需为平台生成原生标题、话题标签与封面文案。
+                </p>
+                <PrimaryButton onClick={handleStrategy} loading={loading}>
+                  {loading ? "分析中…" : <>分析发布策略 <ArrowRight size={15} /></>}
+                </PrimaryButton>
+              </>
+            )}
+            {mode === "compare" && (
               <>
                 <div>
                   <Eyebrow>平台（单选）</Eyebrow>
@@ -293,19 +343,35 @@ export default function App() {
 
         {/* 结果区 */}
         <div className="mt-7 border-t border-ink-700 pt-6">
-          {mode === "adapt" ? (
+          {mode === "adapt" && (
             <>
               <ResultsHeader title="平台预览" results={results} />
               {results.length === 0 && !loading && <EmptyState text="点「载入示例」或自己写一篇，再「一键适配」。同一篇内容会被改写成各平台的原生风格并逐字预览。" />}
               {loading && results.length === 0 && <SkeletonRow count={selected.length} />}
               {results.length > 0 && <PreviewPanel results={results} />}
             </>
-          ) : (
+          )}
+          {mode === "compare" && (
             <>
               <CompareHeader platform={comparePlatform} platforms={platforms} count={compareResults.length} />
               {compareResults.length === 0 && !loading && <EmptyState text="选 1 个平台与 2 个以上模型，对比同一篇内容在不同模型下的适配效果与耗时。" />}
               {loading && <SkeletonRow count={selectedModels.length} />}
               {compareResults.length > 0 && <ComparePanel variants={compareResults} preferredKey={preferredKey} onPick={pickModel} />}
+            </>
+          )}
+          {mode === "strategy" && (
+            <>
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="font-serif text-[18px] font-semibold text-paper">发布策略</h2>
+                <span className="font-mono text-[11px] text-paper-faint">{scores.length > 0 ? "按契合度排序" : "该发哪些平台 · 原生创意"}</span>
+              </div>
+              {scores.length === 0 && !loading && <EmptyState text="写一篇内容，点「分析发布策略」。Agent 会判断它更适合发到哪些平台，并按需生成原生标题/话题标签/封面文案。" />}
+              {loading && scores.length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-paper-faint">
+                  <Loader2 size={15} className="animate-spin" /> 策略分析中…
+                </div>
+              )}
+              {scores.length > 0 && <StrategyPanel scores={scores} ideas={ideasMap} onGenerate={handleGenerateIdeas} />}
             </>
           )}
         </div>
@@ -351,6 +417,7 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
   return (
     <div className="flex gap-1 rounded-md border border-ink-700 bg-ink-850 p-1">
       {item("adapt", "一键适配")}
+      {item("strategy", "发布策略")}
       {item("compare", "多模型对比")}
     </div>
   );
