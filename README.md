@@ -6,16 +6,16 @@
 > 七牛云 × XEngineer 暑期实训营 · 题目二作品
 
 - **在线试用（已上线）**：https://publish.qiniu.zdwktlj.top
-- **演示视频（47 秒）**：[在线观看](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)（自托管录屏，含旁白）
+- **演示视频（85 秒）**：[在线观看](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)（自托管录屏，含旁白）
 - 架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 扩展指南：[docs/EXTENSION_GUIDE.md](docs/EXTENSION_GUIDE.md) · 部署文档：[docs/DEPLOY.md](docs/DEPLOY.md)
 
 ---
 
 ## 演示视频
 
-**▶ [在线演示视频（47 秒）](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)** — 自托管录屏，含旁白。
+**▶ [在线演示视频（85 秒）](https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4)** — 自托管录屏，含旁白与字幕。
 
-完整走通核心闭环：载入内容 → 一键适配 4 平台 → 高保真手机壳预览 → 「复制并前往知乎发布」。讲解脚本见 [docs/答辩.md](docs/答辩.md)。
+完整走通创新闭环：AI 起草（DeepSeek 起草 + 自审润色）→ 一键适配 4 平台 → 发布策略评分 → 多模型对比（DeepSeek Chat vs DeepSeek Reasoner）→ 历史记录。讲解脚本见 [docs/答辩.md](docs/答辩.md)。
 
 ## 我们的产品决策：为什么不做"真发布"
 
