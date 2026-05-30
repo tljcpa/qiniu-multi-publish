@@ -82,7 +82,9 @@ class _OpenAICompatProvider(LLMProvider):
             stream=True,
         )
         for chunk in stream:
-            # 末尾 chunk 的 delta.content 可能为 None，需过滤
+            # 部分后端（如 how88）末尾 chunk 的 choices 为空列表，需跳过
+            if not chunk.choices:
+                continue
             delta = chunk.choices[0].delta.content
             if delta:
                 yield delta
@@ -113,6 +115,34 @@ class _OpenAICompatProvider(LLMProvider):
                 last_err = exc
                 continue
         raise LLMError(f"chat_json 在 {max_retries + 1} 次尝试后仍无法解析为 JSON: {last_err}")
+
+
+import re as _re
+
+
+def _extract_json(text: str) -> dict:
+    """从 LLM 响应文本中提取 JSON 对象（应对 ```json ``` 包裹或多余文字）。"""
+    text = text.strip()
+    # 直接解析
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    # 提取 ```json ... ``` 块
+    m = _re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", text)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except (json.JSONDecodeError, TypeError):
+            pass
+    # 找第一个 { ... } 匹配
+    m = _re.search(r"\{[\s\S]+\}", text)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except (json.JSONDecodeError, TypeError):
+            pass
+    raise json.JSONDecodeError("无法从响应中提取 JSON", text, 0)
 
 
 def _mentions_json(messages: list[Message]) -> bool:
@@ -157,6 +187,45 @@ class AzureProvider(_OpenAICompatProvider):
         super().__init__(client, model or settings.azure_openai_deployment, "azure")
 
 
+class How88Provider(_OpenAICompatProvider):
+    """how88 中转站（免费，不可信级别，仅用于非密内容起草）。
+
+    how88 要求 stream=True，因此：
+    - chat() 内部调用 chat_stream() 收集成完整文本
+    - chat_json() 收集后用 _extract_json() 解析（不用 json_object mode）
+    绝不传入任何密钥或敏感信息。
+    """
+
+    def __init__(self, model: str | None = None):
+        if not settings.how88_grunt_key:
+            raise LLMError("HOW88_GRUNT_KEY 未配置，无法初始化 How88Provider")
+        if not settings.how88_base:
+            raise LLMError("HOW88_BASE 未配置，无法初始化 How88Provider")
+        base_url = settings.how88_base.rstrip("/") + "/v1"
+        client = OpenAI(api_key=settings.how88_grunt_key, base_url=base_url)
+        super().__init__(client, model or settings.how88_model, "how88")
+
+    def chat(self, messages, *, temperature=0.7, max_tokens=None):
+        # how88 必须 stream=True，内部收集成完整文本
+        return "".join(self.chat_stream(messages, temperature=temperature))
+
+    def chat_json(self, messages, *, temperature=0.7, max_retries=2):
+        # how88 不支持 json_object response_format，流式收集后用 _extract_json 解析
+        if not _mentions_json(messages):
+            messages = messages + [{
+                "role": "system",
+                "content": "严格只输出一个合法的 JSON 对象，不要任何额外文字或 markdown 代码块。",
+            }]
+        last_err: Exception | None = None
+        for _ in range(max_retries + 1):
+            text = self.chat(messages, temperature=temperature)
+            try:
+                return _extract_json(text)
+            except (json.JSONDecodeError, TypeError) as exc:
+                last_err = exc
+        raise LLMError(f"how88 chat_json 在 {max_retries + 1} 次后仍无法解析: {last_err}")
+
+
 def get_provider(name: str = "deepseek", **kwargs) -> LLMProvider:
     """工厂：按名称返回 LLM 后端实例。
 
@@ -167,4 +236,6 @@ def get_provider(name: str = "deepseek", **kwargs) -> LLMProvider:
         return DeepSeekProvider(**kwargs)
     if name == "azure":
         return AzureProvider(**kwargs)
+    if name == "how88":
+        return How88Provider(**kwargs)
     raise LLMError(f"未知 LLM 后端: {name}")

@@ -13,12 +13,14 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import time
+import zipfile
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from app import __version__
 from app.config import settings
@@ -30,6 +32,9 @@ from app.schemas import (
     CompareResponse,
     CompareVariant,
     CompareVariantResult,
+    DraftRequest,
+    DraftResponse,
+    ExportRequest,
     HistoryItem,
     HistoryListResponse,
     IdeasRequest,
@@ -262,6 +267,134 @@ async def ideas(req: IdeasRequest):
         hashtags=result.hashtags,
         cover_copy=result.cover_copy,
         model=result.model,
+    )
+
+
+# ---------------------- AI 起草管线 ----------------------
+
+# 起草 prompt（喂给 how88，非密内容，只有用户输入的主题）
+_DRAFT_SYSTEM = (
+    "你是一名专业的内容创作者，擅长为多平台写出有观点、有案例的原创文章。"
+    "请根据用户给出的主题，创作一篇 600-800 字的文章。"
+    "结构要求：标题 + 正文（用 ## 分段，2-3 个段落）。"
+    "语言：简体中文，文笔自然流畅，有明确观点。"
+    "输出格式：只输出 JSON，字段为 title（字符串）、body_md（Markdown 字符串）、tags（字符串数组，3-5 个）。"
+)
+
+# 审核 prompt（喂给 DeepSeek，消耗少量 token 只做润色不重写）
+_REVIEW_SYSTEM = (
+    "你是内容编辑，职责是润色一篇初稿：修正语病、优化段落节奏、补充 1-2 个具体细节，"
+    "但保留作者原有观点和结构，不大幅重写。"
+    "输出格式：只输出 JSON，字段同输入：title、body_md、tags。"
+)
+
+
+@app.post("/draft", response_model=DraftResponse, dependencies=[Depends(cost_rate_limit)])
+async def draft(req: DraftRequest):
+    """AI 起草管线：how88（opus-4-8）起草初稿，DeepSeek 审核润色。
+
+    how88 免费，消耗零 DeepSeek 余额；DeepSeek 只做轻量润色，token 消耗极低。
+    """
+    # Step 1：how88 起草（只传用户主题，无任何密钥或敏感信息）
+    try:
+        how88 = get_provider("how88")
+    except LLMError as exc:
+        raise HTTPException(status_code=503, detail=f"how88 不可用: {exc}")
+
+    draft_messages = [
+        {"role": "system", "content": _DRAFT_SYSTEM},
+        {"role": "user", "content": f"主题：{req.topic}"},
+    ]
+    try:
+        raw = await asyncio.to_thread(how88.chat_json, draft_messages, temperature=0.8)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"how88 起草失败: {exc}")
+
+    draft_title = str(raw.get("title", req.topic))
+    draft_body = str(raw.get("body_md", ""))
+    draft_tags: list[str] = [str(t) for t in raw.get("tags", [])]
+
+    # Step 2：DeepSeek 轻量润色（温度低、不重写结构）
+    try:
+        reviewer = get_provider(req.review_provider, **({"model": req.review_model} if req.review_model else {}))
+    except LLMError as exc:
+        # 润色失败不阻断整个流程，直接返回初稿
+        return DraftResponse(
+            title=draft_title,
+            body_md=draft_body,
+            tags=draft_tags,
+            draft_model=getattr(how88, "_model", settings.how88_model),
+            review_model=f"(跳过: {exc})",
+        )
+
+    review_messages = [
+        {"role": "system", "content": _REVIEW_SYSTEM},
+        {
+            "role": "user",
+            "content": (
+                f"请润色以下初稿并以 JSON 格式返回。\n"
+                f"title: {draft_title}\n"
+                f"tags: {draft_tags}\n"
+                f"body_md:\n{draft_body}"
+            ),
+        },
+    ]
+    try:
+        refined = await asyncio.to_thread(reviewer.chat_json, review_messages, temperature=0.4)
+        return DraftResponse(
+            title=str(refined.get("title", draft_title)),
+            body_md=str(refined.get("body_md", draft_body)),
+            tags=[str(t) for t in refined.get("tags", draft_tags)],
+            draft_model=getattr(how88, "_model", settings.how88_model),
+            review_model=getattr(reviewer, "name", req.review_provider),
+        )
+    except Exception:
+        # 润色失败降级：返回未润色的初稿
+        return DraftResponse(
+            title=draft_title,
+            body_md=draft_body,
+            tags=draft_tags,
+            draft_model=getattr(how88, "_model", settings.how88_model),
+            review_model="(润色失败，返回初稿)",
+        )
+
+
+# ---------------------- 导出成品包 ----------------------
+
+@app.post("/export")
+async def export_zip(req: ExportRequest):
+    """把适配结果打包成 ZIP 成品包，每个平台一个 .txt 文件（可直接粘贴发布）。
+
+    这是"诚实版真发布"的最终形态：不假装能发，给用户最干净的成品文件。
+    """
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        readme_lines = [
+            f"多平台内容成品包",
+            f"原标题：{req.title or '（未填）'}",
+            "",
+            "各平台文件说明：",
+        ]
+        for result in req.results:
+            if result.error:
+                continue
+            # 优先用 formatted（平台特定格式），否则拼接 title+content
+            content_text = result.formatted or f"{result.title}\n\n{result.content}"
+            if result.hashtags:
+                content_text += "\n\n" + " ".join(f"#{t}" for t in result.hashtags)
+            filename = f"{result.display_name}.txt"
+            zf.writestr(filename, content_text.encode("utf-8"))
+            readme_lines.append(f"  {filename}")
+            if result.publish_intent and result.publish_intent.url:
+                readme_lines.append(f"    → 发布地址：{result.publish_intent.url}")
+        zf.writestr("README.txt", "\n".join(readme_lines).encode("utf-8"))
+
+    zip_bytes = buf.getvalue()
+    slug = (req.title or "content")[:20].replace(" ", "-")
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="multi-publish-{slug}.zip"'},
     )
 
 

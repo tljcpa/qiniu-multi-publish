@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     azure_openai_deployment: str = "gpt-4-1-mini"
     azure_openai_api_version: str = "2024-10-21"
 
+    # how88 中转站（免费，不可信级别，仅喂非密内容，起草初稿用）
+    # 对应 env var：HOW88_BASE / HOW88_GRUNT_KEY / HOW88_MODEL
+    how88_base: str = ""        # HOW88_BASE，如 https://how88.top
+    how88_grunt_key: str = ""   # HOW88_GRUNT_KEY
+    how88_model: str = "claude-opus-4-8"  # HOW88_MODEL
+
     # 从 .env 读取；忽略未声明的多余变量，避免共享 shared.env 里其它项目的键报错
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
