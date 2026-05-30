@@ -65,6 +65,15 @@ cd /opt/multi-publish && bash deploy/update.sh
 
 `deploy/update.sh` 会：拉 main → 重建重启后端容器 → 重新构建前端 → 重载 Caddy → 健康检查。
 
+## 演示视频托管
+
+演示视频（含旁白，约 2.7MB）**不入 git**，放在 VM 的 `/opt/multi-publish/media/demo/multi-publish-demo.mp4`。
+由于 `vite build` 会清空 `frontend/dist/`，`deploy/update.sh` 在构建后会自动把它回拷到 `dist/demo/`，
+对外经 Caddy SPA 静态托管，URL 为 `https://publish.qiniu.zdwktlj.top/demo/multi-publish-demo.mp4`。
+
+> 教训：演示视频曾被直接放进 `dist/demo/`（vite 的输出目录），一次重建即被清空导致链接失效。
+> 现改为放在 `media/` 稳定目录 + 构建后回拷，避免再被清掉。
+
 ## 常见问题
 
 - **剪贴板按钮无效**：确认走的是 HTTPS（`navigator.clipboard` 仅安全上下文可用）。前端已做 execCommand 兜底。
