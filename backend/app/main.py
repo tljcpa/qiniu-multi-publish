@@ -350,7 +350,7 @@ async def draft(req: DraftRequest):
             body_md=str(refined.get("body_md", draft_body)),
             tags=[str(t) for t in refined.get("tags", draft_tags)],
             draft_model=draft_model_name,
-            review_model=getattr(reviewer, "name", req.review_provider),
+            review_model=getattr(reviewer, "_model", getattr(reviewer, "name", req.review_provider)),
         )
     except Exception:
         # 润色失败降级：返回未润色的初稿

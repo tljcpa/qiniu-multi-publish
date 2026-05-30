@@ -1,4 +1,4 @@
-// AI 起草面板：用户输入主题，how88（opus-4-8）起草初稿，DeepSeek 审核润色，一键载入编辑器。
+// AI 起草面板：用户输入主题，DeepSeek 起草初稿，DeepSeek 自审润色，一键载入编辑器。
 
 import { useState } from "react";
 import { Loader2, ArrowRight, Sparkles } from "lucide-react";
@@ -51,7 +51,7 @@ export default function DraftPanel({ onUse }: Props) {
           }}
         />
         <p className="mt-2 text-[11px] text-paper-faint">
-          claude-opus-4-8 起草初稿 → DeepSeek 自审润色 → 一键载入编辑器
+          DeepSeek 起草初稿 → DeepSeek 自审润色 → 一键载入编辑器
         </p>
       </div>
 
