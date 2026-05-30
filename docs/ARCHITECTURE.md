@@ -169,6 +169,7 @@ flowchart LR
 - 双后端的意义：① 主用 DeepSeek（便宜快）；② Azure 备用做"多模型对比"亮点（同内容两模型适配，用户选优，偏好回流）。
 - 切后端不改 adapter：adapter 只依赖抽象接口，后端由配置/请求参数决定。
 - 对外接口：`GET /models` 按已配置 key 动态列出可用模型；`POST /compare` 对单平台用多个模型并发适配，返回各自结果与 `latency_ms`，支撑前端"多模型对比 + 偏好记忆"（亮点6）。
+- **发布策略 Agent（创新）**：`POST /strategy` 收集所有平台的 `strategy_profile()`（定位档案）+ 用户内容，一次 LLM 调用给每个平台 0-100 契合度评分判断"该发哪些"；`POST /ideas` 调用 adapter 的 `generate_ideas()` 产出该平台原生标题/话题标签/封面文案。两者都建在 Adapter 架构上——新增平台写 `strategy_profile` 即自动进入打分，无需改 Agent。
 
 ---
 

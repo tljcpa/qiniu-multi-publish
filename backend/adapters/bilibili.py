@@ -29,6 +29,14 @@ class BilibiliAdapter(PlatformAdapter):
             "保持原文的事实与观点，只改写表达风格，玩梗适度别喧宾夺主。"
         )
 
+    def strategy_profile(self) -> dict:
+        return {
+            "content_types": ["教程", "测评", "科普", "娱乐向", "盘点"],
+            "ideal_length": "中短（轻松好读）",
+            "tone": "口语、活泼、有网感有梗",
+            "note": "适合年轻向、可玩梗的内容；过于严肃刻板的长篇不占优势。",
+        }
+
     def extension_guide(self) -> str:
         return (
             "B 站坑位：① 专栏对 Markdown 支持有限，建议粘贴纯文本/富文本后用编辑器排版；"

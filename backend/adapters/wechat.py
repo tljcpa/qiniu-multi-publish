@@ -37,6 +37,14 @@ class WeChatAdapter(PlatformAdapter):
         schema["summary"] = "开头引言（一段，钩住读者）"
         return schema
 
+    def strategy_profile(self) -> dict:
+        return {
+            "content_types": ["深度长文", "行业观点", "教程攻略", "品牌叙事"],
+            "ideal_length": "中长（800-2500 字）",
+            "tone": "正式、专业、有体系",
+            "note": "适合有完整论述结构的深度内容；纯碎片化/强视觉的内容不占优势。",
+        }
+
     def extension_guide(self) -> str:
         return (
             "公众号坑位：① 正文图片需先上传素材库，本工具只产出文本，图片需手动；"

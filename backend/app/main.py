@@ -29,10 +29,15 @@ from app.schemas import (
     CompareResponse,
     CompareVariant,
     CompareVariantResult,
+    IdeasRequest,
+    IdeasResponse,
     ModelOption,
     PlatformInfo,
     PlatformResult,
+    PlatformScore,
     PublishIntent,
+    StrategyRequest,
+    StrategyResponse,
 )
 
 # 导入 adapters 包触发所有平台 adapter 的自注册（@register 生效）
@@ -40,6 +45,7 @@ import adapters  # noqa: F401
 from adapters.base import AdaptedResult, PlatformAdapter, all_adapters, get_adapter, platform_names
 from app.llm_provider import LLMError, get_provider
 from app.ratelimit import cost_rate_limit
+from app.strategy import recommend_platforms
 from app.streaming import build_stream_messages, parse_streamed
 
 app = FastAPI(
@@ -208,6 +214,44 @@ async def compare(req: CompareRequest):
         platform=req.platform,
         display_name=adapter.display_name,
         variants=list(variant_results),
+    )
+
+
+@app.post("/strategy", response_model=StrategyResponse, dependencies=[Depends(cost_rate_limit)])
+async def strategy(req: StrategyRequest):
+    """发布策略 Agent：判断这段内容该发哪些平台，给每个平台契合度分 + 理由（创新）。"""
+    _require_nonempty(req.content)
+    try:
+        provider = get_provider(req.provider, **({"model": req.model} if req.model else {}))
+    except LLMError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    scores = await asyncio.to_thread(recommend_platforms, req.content, provider, all_adapters())
+    return StrategyResponse(scores=[PlatformScore(**s) for s in scores])
+
+
+@app.post("/ideas", response_model=IdeasResponse, dependencies=[Depends(cost_rate_limit)])
+async def ideas(req: IdeasRequest):
+    """为单个平台生成原生标题/话题标签/封面文案建议（不改写正文，创新）。"""
+    _require_nonempty(req.content)
+    try:
+        adapter = get_adapter(req.platform)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    try:
+        provider = get_provider(req.provider, **({"model": req.model} if req.model else {}))
+        result = await asyncio.to_thread(adapter.generate_ideas, req.content, provider)
+    except Exception as exc:  # noqa: BLE001  失败时回传 error 字段，不抛 500
+        return IdeasResponse(
+            platform=req.platform, display_name=adapter.display_name,
+            titles=[], hashtags=[], cover_copy=[], error=f"生成失败: {exc}",
+        )
+    return IdeasResponse(
+        platform=result.platform,
+        display_name=adapter.display_name,
+        titles=result.titles,
+        hashtags=result.hashtags,
+        cover_copy=result.cover_copy,
+        model=result.model,
     )
 
 

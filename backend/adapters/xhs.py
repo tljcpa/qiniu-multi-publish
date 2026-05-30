@@ -48,6 +48,14 @@ class XhsAdapter(PlatformAdapter):
             parts.append(" ".join("#" + tag for tag in adapted.hashtags))
         return "\n".join(parts)
 
+    def strategy_profile(self) -> dict:
+        return {
+            "content_types": ["生活方式", "种草测评", "攻略清单", "美妆穿搭", "情绪共鸣"],
+            "ideal_length": "短（300-800 字）",
+            "tone": "亲切、种草、强情绪、口语",
+            "note": "适合视觉化、有痛点共鸣、可配图的内容；纯硬核技术长文不吃香。",
+        }
+
     def extension_guide(self) -> str:
         return (
             "小红书坑位：① 正文不支持富文本/Markdown，只能纯文本 + emoji，标题与正文分开输入；"

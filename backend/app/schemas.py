@@ -101,3 +101,43 @@ class CompareResponse(BaseModel):
     platform: str
     display_name: str
     variants: list[CompareVariantResult]
+
+
+# ---------------------- 发布策略 Agent（创新） ----------------------
+class StrategyRequest(BaseModel):
+    """POST /strategy 请求体。"""
+
+    content: ContentInput
+    provider: str = "deepseek"
+    model: str | None = None
+
+
+class PlatformScore(BaseModel):
+    platform: str
+    display_name: str
+    score: int          # 0-100 契合度
+    reason: str
+    recommended: bool
+
+
+class StrategyResponse(BaseModel):
+    scores: list[PlatformScore]
+
+
+class IdeasRequest(BaseModel):
+    """POST /ideas 请求体：为单个平台生成创意。"""
+
+    content: ContentInput
+    platform: str
+    provider: str = "deepseek"
+    model: str | None = None
+
+
+class IdeasResponse(BaseModel):
+    platform: str
+    display_name: str
+    titles: list[str]
+    hashtags: list[str]
+    cover_copy: list[str]
+    model: str = ""
+    error: str | None = None

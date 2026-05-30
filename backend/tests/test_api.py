@@ -170,6 +170,51 @@ def test_compare_default_variants(monkeypatch):
     assert len(resp.json()["variants"]) == 2
 
 
+def test_strategy_endpoint(monkeypatch):
+    """POST /strategy 返回 4 个平台的契合度评分。"""
+    payload = {"scores": [
+        {"platform": "zhihu", "score": 85, "reason": "适合"},
+        {"platform": "wechat", "score": 72, "reason": "适合"},
+        {"platform": "bilibili", "score": 55, "reason": "一般"},
+        {"platform": "xhs", "score": 30, "reason": "不适合"},
+    ]}
+    monkeypatch.setattr(main, "get_provider", lambda *a, **k: FakeProvider(payload))
+    resp = client.post("/strategy", json={"content": {"title": "深度长文", "body_md": "论证内容", "tags": []}})
+    assert resp.status_code == 200
+    scores = resp.json()["scores"]
+    names = {s["platform"] for s in scores}
+    # 四个真实平台都在（其它测试可能注册了额外的 dummy adapter，故用 subset）
+    assert {"wechat", "zhihu", "bilibili", "xhs"}.issubset(names)
+    assert scores[0]["platform"] == "zhihu"  # 最高分降序在前
+    by = {s["platform"]: s for s in scores}
+    assert by["zhihu"]["recommended"] is True
+    assert by["xhs"]["recommended"] is False
+
+
+def test_ideas_endpoint(monkeypatch):
+    """POST /ideas 返回某平台的标题/标签/封面文案。"""
+    payload = {"titles": ["甲", "乙", "丙"], "hashtags": ["x", "y"], "cover_copy": ["封面"]}
+    monkeypatch.setattr(main, "get_provider", lambda *a, **k: FakeProvider(payload))
+    resp = client.post("/ideas", json={
+        "content": {"title": "t", "body_md": "正文", "tags": []}, "platform": "xhs",
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["platform"] == "xhs"
+    assert body["titles"] == ["甲", "乙", "丙"]
+    assert body["hashtags"] == ["x", "y"]
+    assert body["error"] is None
+
+
+def test_ideas_unknown_platform_404(monkeypatch):
+    payload = {"titles": [], "hashtags": [], "cover_copy": []}
+    monkeypatch.setattr(main, "get_provider", lambda *a, **k: FakeProvider(payload))
+    resp = client.post("/ideas", json={
+        "content": {"title": "t", "body_md": "b", "tags": []}, "platform": "nope",
+    })
+    assert resp.status_code == 404
+
+
 @pytest.mark.skipif(
     not os.getenv("DEEPSEEK_API_KEY"),
     reason="未设置 DEEPSEEK_API_KEY，跳过真实 /compare live",
