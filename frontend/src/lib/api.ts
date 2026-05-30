@@ -224,3 +224,101 @@ export async function compareModels(
   }
   return resp.json();
 }
+
+// ---------------- 历史账户 ----------------
+
+export interface HistoryItem {
+  id: number;
+  session_id: string;
+  title: string;
+  body_md: string;
+  tags: string[];
+  platforms: string[];
+  results: PlatformResult[];
+  created_at: string;
+}
+
+export interface SaveHistoryRequest {
+  session_id: string;
+  title: string;
+  body_md: string;
+  tags: string[];
+  platforms: string[];
+  results: PlatformResult[];
+}
+
+export async function fetchHistory(sessionId: string, limit = 20): Promise<HistoryItem[]> {
+  const resp = await fetch(`${API_BASE}/history?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`);
+  if (!resp.ok) {
+    throw new Error(`获取历史失败: ${resp.status}`);
+  }
+  return (await resp.json()).items as HistoryItem[];
+}
+
+export async function saveHistory(req: SaveHistoryRequest): Promise<HistoryItem> {
+  const resp = await fetch(`${API_BASE}/history`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) {
+    throw new Error(`保存历史失败: ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function deleteHistory(itemId: number, sessionId: string): Promise<void> {
+  const resp = await fetch(
+    `${API_BASE}/history/${itemId}?session_id=${encodeURIComponent(sessionId)}`,
+    { method: "DELETE" }
+  );
+  if (!resp.ok) {
+    throw new Error(`删除历史失败: ${resp.status}`);
+  }
+}
+
+// ---------------- AI 起草管线 ----------------
+
+export interface DraftResult {
+  title: string;
+  body_md: string;
+  tags: string[];
+  draft_model: string;
+  review_model: string;
+}
+
+export async function draftContent(topic: string): Promise<DraftResult> {
+  const resp = await fetch(`${API_BASE}/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ topic }),
+  });
+  if (!resp.ok) {
+    const detail = await resp.json().catch(() => ({ detail: resp.statusText }));
+    throw new Error(`起草失败: ${detail.detail ?? resp.status}`);
+  }
+  return resp.json();
+}
+
+// ---------------- 导出成品包 ----------------
+
+export async function exportZip(results: PlatformResult[], title: string): Promise<void> {
+  const resp = await fetch(`${API_BASE}/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ results, title }),
+  });
+  if (!resp.ok) {
+    throw new Error(`导出失败: ${resp.status}`);
+  }
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const slug = title.slice(0, 20).replace(/\s+/g, "-") || "content";
+  a.download = `multi-publish-${slug}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

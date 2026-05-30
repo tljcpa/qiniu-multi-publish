@@ -1,9 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Loader2, ArrowRight, GitCompare } from "lucide-react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
+import { Loader2, ArrowRight, GitCompare, History, Download } from "lucide-react";
 import Editor from "./components/Editor";
 import PreviewPanel from "./components/PreviewPanel";
 import ComparePanel from "./components/ComparePanel";
 import StrategyPanel from "./components/StrategyPanel";
+import HistoryPanel from "./components/HistoryPanel";
+import DraftPanel from "./components/DraftPanel";
 import {
   adaptStream,
   compareModels,
@@ -11,7 +13,10 @@ import {
   fetchModels,
   fetchPlatforms,
   fetchStrategy,
+  saveHistory,
+  exportZip,
   type CompareVariantResult,
+  type HistoryItem,
   type IdeasResult,
   type ModelOption,
   type PlatformInfo,
@@ -20,7 +25,19 @@ import {
 } from "./lib/api";
 import { getPreferredModel, setPreferredModel } from "./lib/preferences";
 
-type Mode = "adapt" | "compare" | "strategy";
+// 获取或生成匿名 session UUID，持久化到 localStorage
+function getOrCreateSessionId(): string {
+  const key = "mp_session_id";
+  const existing = localStorage.getItem(key);
+  if (existing) {
+    return existing;
+  }
+  const id = crypto.randomUUID();
+  localStorage.setItem(key, id);
+  return id;
+}
+
+type Mode = "adapt" | "compare" | "strategy" | "draft";
 type IdeasState = IdeasResult | "loading" | undefined;
 
 // 真实示例文章（demo 一键灌入，杜绝占位文案）
@@ -60,6 +77,13 @@ export default function App() {
   // strategy 模式
   const [scores, setScores] = useState<PlatformScore[]>([]);
   const [ideasMap, setIdeasMap] = useState<Record<string, IdeasState>>({});
+
+  // 历史面板
+  const [sessionId] = useState(() => getOrCreateSessionId());
+  const [showHistory, setShowHistory] = useState(false);
+
+  // 导出状态
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchPlatforms()
@@ -121,9 +145,10 @@ export default function App() {
     const startAt: Record<string, number> = {};
     const order: string[] = [];
     const flush = () => setResults(order.map((p) => acc[p]));
+    const content = buildContent();
     try {
       await adaptStream(
-        { content: buildContent(), platforms: selected },
+        { content, platforms: selected },
         {
           onMeta: (platform, displayName, previewTemplate) => {
             acc[platform] = {
@@ -152,6 +177,21 @@ export default function App() {
             acc[platform] = { ...(cur ?? ({} as PlatformResult)), platform, error: err, streaming: false };
             flush();
           },
+          onAllDone: () => {
+            // 至少有一个成功结果时，自动保存到历史
+            const final = order.map((p) => acc[p]);
+            const hasSuccess = final.some((r) => !r.error && r.content);
+            if (hasSuccess) {
+              saveHistory({
+                session_id: sessionId,
+                title: content.title,
+                body_md: content.body_md,
+                tags: content.tags,
+                platforms: selected,
+                results: final,
+              }).catch(() => {});  // 静默失败，不影响主流程
+            }
+          },
         }
       );
     } catch (e) {
@@ -159,6 +199,34 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  const handleRestore = useCallback((item: HistoryItem) => {
+    setTitle(item.title);
+    setTagsInput(item.tags.join(", "));
+    setSeed({ markdown: item.body_md, nonce: seed.nonce + 1 });
+    setMode("adapt");
+  }, [seed.nonce]);
+
+  async function handleExport() {
+    if (results.length === 0) {
+      return;
+    }
+    setExporting(true);
+    try {
+      await exportZip(results, title);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function handleUseDraft(draftTitle: string, bodyMd: string, tags: string[]) {
+    setTitle(draftTitle);
+    setTagsInput(tags.join(", "));
+    setSeed({ markdown: bodyMd, nonce: seed.nonce + 1 });
+    setMode("adapt");
   }
 
   async function handleCompare() {
@@ -223,7 +291,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-ink-900 text-paper">
-      <TopBar />
+      <TopBar onHistory={() => setShowHistory(true)} />
+      {showHistory && (
+        <HistoryPanel
+          sessionId={sessionId}
+          onRestore={handleRestore}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
       <main className="mx-auto max-w-[1280px] px-5 py-5">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
           {/* 左：控制台 */}
@@ -252,7 +327,7 @@ export default function App() {
               />
             </Panel>
 
-            <ModeToggle mode={mode} onChange={setMode} />
+            <ModeToggle mode={mode} onChange={(m) => { setMode(m); setError(null); }} />
 
             {mode === "adapt" && (
               <>
@@ -326,6 +401,10 @@ export default function App() {
               </>
             )}
 
+            {mode === "draft" && (
+              <DraftPanel onUse={handleUseDraft} />
+            )}
+
             {error && <div className="rounded border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</div>}
           </section>
 
@@ -345,7 +424,7 @@ export default function App() {
         <div className="mt-7 border-t border-ink-700 pt-6">
           {mode === "adapt" && (
             <>
-              <ResultsHeader title="平台预览" results={results} />
+              <AdaptResultsHeader results={results} onExport={handleExport} exporting={exporting} />
               {results.length === 0 && !loading && <EmptyState text="点「载入示例」或自己写一篇，再「一键适配」。同一篇内容会被改写成各平台的原生风格并逐字预览。" />}
               {loading && results.length === 0 && <SkeletonRow count={selected.length} />}
               {results.length > 0 && <PreviewPanel results={results} />}
@@ -380,7 +459,7 @@ export default function App() {
   );
 }
 
-function TopBar() {
+function TopBar({ onHistory }: { onHistory: () => void }) {
   return (
     <header className="sticky top-0 z-30 border-b border-ink-700 bg-ink-950">
       <div className="mx-auto flex max-w-[1280px] items-center justify-between px-5 py-2.5">
@@ -389,7 +468,17 @@ function TopBar() {
           <span className="font-serif text-[17px] font-semibold text-paper">多平台内容发布工具</span>
           <span className="hidden font-mono text-[11px] text-paper-faint sm:inline">multi-publish</span>
         </div>
-        <span className="hidden font-mono text-[11px] text-paper-dim md:inline">适配 → 预览 → 复制 → 跳转 · 不假装能发</span>
+        <div className="flex items-center gap-3">
+          <span className="hidden font-mono text-[11px] text-paper-dim md:inline">适配 → 预览 → 复制 → 跳转 · 不假装能发</span>
+          <button
+            onClick={onHistory}
+            className="flex items-center gap-1 rounded border border-ink-700 px-2 py-1 font-mono text-[11px] text-paper-dim transition-colors hover:border-ink-500 hover:text-paper"
+            title="查看历史记录"
+          >
+            <History size={12} />
+            历史
+          </button>
+        </div>
       </div>
     </header>
   );
@@ -407,7 +496,7 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
   const item = (m: Mode, label: string) => (
     <button
       onClick={() => onChange(m)}
-      className={`flex-1 rounded py-1.5 text-[13px] font-medium transition-colors ${
+      className={`flex-1 rounded py-1.5 text-[12px] font-medium transition-colors ${
         mode === m ? "bg-ink-700 text-paper" : "text-paper-dim hover:text-paper"
       }`}
     >
@@ -418,7 +507,8 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
     <div className="flex gap-1 rounded-md border border-ink-700 bg-ink-850 p-1">
       {item("adapt", "一键适配")}
       {item("strategy", "发布策略")}
-      {item("compare", "多模型对比")}
+      {item("compare", "模型对比")}
+      {item("draft", "AI起草")}
     </div>
   );
 }
@@ -451,15 +541,35 @@ function PrimaryButton({ children, onClick, loading }: { children: ReactNode; on
   );
 }
 
-function ResultsHeader({ title, results }: { title: string; results: PlatformResult[] }) {
+function AdaptResultsHeader({
+  results,
+  onExport,
+  exporting,
+}: {
+  results: PlatformResult[];
+  onExport: () => void;
+  exporting: boolean;
+}) {
   const done = results.filter((r) => !r.streaming && !r.error).length;
   return (
-    <div className="mb-4 flex items-baseline justify-between">
-      <h2 className="font-serif text-[18px] font-semibold text-paper">{title}</h2>
-      {results.length > 0 && (
-        <span className="font-mono text-[11px] text-paper-faint">
-          {done}/{results.length} 完成 · 流式 SSE
-        </span>
+    <div className="mb-4 flex items-center justify-between">
+      <div className="flex items-baseline gap-3">
+        <h2 className="font-serif text-[18px] font-semibold text-paper">平台预览</h2>
+        {results.length > 0 && (
+          <span className="font-mono text-[11px] text-paper-faint">
+            {done}/{results.length} 完成 · 流式 SSE
+          </span>
+        )}
+      </div>
+      {results.length > 0 && done === results.length && (
+        <button
+          onClick={onExport}
+          disabled={exporting}
+          className="flex items-center gap-1.5 rounded border border-ink-600 px-3 py-1.5 font-mono text-[12px] text-paper-dim transition-colors hover:border-ink-500 hover:text-paper disabled:opacity-50"
+        >
+          {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+          导出成品包
+        </button>
       )}
     </div>
   );
