@@ -172,3 +172,33 @@ class SaveHistoryRequest(BaseModel):
 class HistoryListResponse(BaseModel):
     items: list[HistoryItem]
     total: int
+
+
+# ---------------------- AI 起草管线 ----------------------
+
+class DraftRequest(BaseModel):
+    """POST /draft 请求体。"""
+
+    topic: str = Field(..., min_length=2, max_length=200, description="文章主题或关键词")
+    # review_provider 用于自审润色，默认 deepseek（省 how88 配额）
+    review_provider: str = "deepseek"
+    review_model: str | None = None
+
+
+class DraftResponse(BaseModel):
+    """POST /draft 响应体。"""
+
+    title: str
+    body_md: str
+    tags: list[str]
+    draft_model: str    # how88 模型（起草）
+    review_model: str   # deepseek 模型（润色）
+
+
+# ---------------------- 导出成品包 ----------------------
+
+class ExportRequest(BaseModel):
+    """POST /export 请求体：接收适配结果列表，返回 ZIP 成品包。"""
+
+    results: list[PlatformResult]
+    title: str = ""
