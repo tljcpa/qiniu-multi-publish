@@ -180,7 +180,7 @@ class DraftRequest(BaseModel):
     """POST /draft 请求体。"""
 
     topic: str = Field(..., min_length=2, max_length=200, description="文章主题或关键词")
-    # review_provider 用于自审润色，默认 deepseek（省 how88 配额）
+    # review_provider 用于自审润色，默认 deepseek
     review_provider: str = "deepseek"
     review_model: str | None = None
 
@@ -191,8 +191,8 @@ class DraftResponse(BaseModel):
     title: str
     body_md: str
     tags: list[str]
-    draft_model: str    # how88 模型（起草）
-    review_model: str   # deepseek 模型（润色）
+    draft_model: str    # 起草所用模型名
+    review_model: str   # 润色所用模型名
 
 
 # ---------------------- 导出成品包 ----------------------

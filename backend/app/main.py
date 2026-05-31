@@ -296,7 +296,7 @@ _REVIEW_SYSTEM = (
 async def draft(req: DraftRequest):
     """AI 起草管线：DeepSeek 起草初稿，再由 DeepSeek 轻量润色。
 
-    起草与润色分两步、低温润色不重写结构。how88 中转已弃用（额度不可靠）。
+    起草与润色分两步、低温润色不重写结构。
     """
     # Step 1：DeepSeek 起草（只传用户主题，无任何密钥或敏感信息）
     try:
